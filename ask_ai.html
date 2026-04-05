@@ -48,7 +48,6 @@
     let contentElement = document.querySelector("#content");
     let lastChatName = "";
     let chatItems = [];
-    let lastVibrateAt = 0;
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
 
@@ -94,22 +93,6 @@
 
       chatSelectElement.value = chatItems[0].name;
     }
-
-    function vibrateOnPromptUpdate() {
-      let now = Date.now();
-
-      if (now - lastVibrateAt < 120) {
-        return;
-      }
-
-      if (!navigator.vibrate) {
-        return;
-      }
-
-      lastVibrateAt = now;
-      navigator.vibrate(20);
-    }
-
     function escapeFirebaseKey(value) {
       return String(value || "").replace(/[.#$\/\[\]\u0000-\u001F\u007F]/g, function (char) {
         return "%" + char.charCodeAt(0).toString(16).toUpperCase();
@@ -355,7 +338,6 @@
     }
 
     sendBtnElement.addEventListener("click", handleSend);
-    promptElement.addEventListener("input", vibrateOnPromptUpdate);
 
     main();
   </script>
