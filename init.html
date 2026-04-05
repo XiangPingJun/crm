@@ -1,0 +1,15 @@
+<input type="text" id="FIREBASE_API_KEY" placeholder="FIREBASE_API_KEY">
+<input type="text" id="FIREBASE_DB_URL" placeholder="FIREBASE_DB_URL">
+<input type="text" id="FIREBASE_EMAIL" placeholder="FIREBASE_EMAIL">
+<input type="text" id="FIREBASE_PASSWORD" placeholder="FIREBASE_PASSWORD">
+<button id="saveBtn">Save</button>
+
+<script>
+  document.getElementById("saveBtn").addEventListener("click", function () {
+    localStorage.FIREBASE_API_KEY = document.getElementById("FIREBASE_API_KEY").value;
+    localStorage.FIREBASE_DB_URL = document.getElementById("FIREBASE_DB_URL").value;
+    localStorage.FIREBASE_EMAIL = document.getElementById("FIREBASE_EMAIL").value;
+    localStorage.FIREBASE_PASSWORD = document.getElementById("FIREBASE_PASSWORD").value;
+    alert("Configuration saved!");
+  });
+</script>

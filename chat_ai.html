@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: #3E3E42;
+      color: #E6E6E6;
+      font-size: larger;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="content" style="white-space: pre-line;">等待 Firebase 更新...</div>
+
+  <script src="./conf.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { getDatabase, onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    let firebaseConfig = {
+      apiKey: localStorage.FIREBASE_API_KEY,
+      authDomain: "social-crm-80a3a.firebaseapp.com",
+      databaseURL: localStorage.FIREBASE_DB_URL,
+    };
+
+    let firebaseEmail = localStorage.FIREBASE_EMAIL;
+    let firebasePassword = localStorage.FIREBASE_PASSWORD;
+
+    let app = initializeApp(firebaseConfig);
+    let auth = getAuth(app);
+    let database = getDatabase(app);
+    let releaseChatAiListener = null;
+    let contentElement = document.querySelector("#content");
+
+    function setStatus(text) {
+      contentElement.textContent = text;
+      contentElement.classList.add("empty");
+    }
+
+    function escapeFirebaseKey(value) {
+      return String(value || "").replace(/[.#$\/\[\]\u0000-\u001F\u007F]/g, function (char) {
+        return "%" + char.charCodeAt(0).toString(16).toUpperCase();
+      });
+    }
+
+    function renderContent(chatName, content) {
+      let title = chatName ? "〖" + chatName + "〗" : "";
+      contentElement.textContent = title + (content || "目前 chat_ai 沒有內容");
+      contentElement.classList.remove("empty");
+    }
+
+    function renderEmpty(message) {
+      contentElement.textContent = message;
+      contentElement.classList.add("empty");
+    }
+
+    function watchChatAi(chatName) {
+      if (releaseChatAiListener) {
+        releaseChatAiListener();
+        releaseChatAiListener = null;
+      }
+
+      if (!chatName) {
+        renderEmpty("等待 Firebase 更新...");
+        return;
+      }
+
+      let chatKey = escapeFirebaseKey(chatName);
+      let chatAiRef = ref(database, "chat_ai/" + chatKey);
+      setStatus("監聽中");
+
+      releaseChatAiListener = onValue(chatAiRef, function (snapshot) {
+        renderContent(chatName, snapshot.val() || "目前 chat_ai 沒有內容");
+      }, function (error) {
+        setStatus("chat_ai 監聽失敗");
+        renderEmpty(error.message || "chat_ai 監聽失敗");
+      });
+    }
+
+    async function main() {
+      try {
+        setStatus("登入 Firebase");
+        await signInWithEmailAndPassword(auth, firebaseEmail, firebasePassword);
+        setStatus("監聽 last_chat");
+
+        let lastChatRef = ref(database, "last_chat");
+        onValue(lastChatRef, function (snapshot) {
+          let chatName = snapshot.val() ? String(snapshot.val()).trim() : "";
+          watchChatAi(chatName);
+        }, function (error) {
+          setStatus("last_chat 監聽失敗");
+          renderEmpty(error.message || "last_chat 監聽失敗");
+        });
+      } catch (error) {
+        setStatus("初始化失敗");
+        renderEmpty(error.message || "Firebase 初始化失敗");
+      }
+    }
+
+    main();
+  </script>
+</body>
+
+</html>
