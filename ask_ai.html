@@ -44,6 +44,7 @@
     let sendBtnElement = document.querySelector("#sendBtn");
     let contentElement = document.querySelector("#content");
     let lastChatName = "";
+    let lastVibrateAt = 0;
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let OPENROUTER_MODEL = "minimax/minimax-m2.7";
 
@@ -53,6 +54,21 @@
 
     function renderLastChat(chatName) {
       sendBtnElement.textContent = chatName || "等待 last_chat...";
+    }
+
+    function vibrateOnPromptUpdate() {
+      let now = Date.now();
+
+      if (now - lastVibrateAt < 120) {
+        return;
+      }
+
+      if (!navigator.vibrate) {
+        return;
+      }
+
+      lastVibrateAt = now;
+      navigator.vibrate(20);
     }
 
     function escapeFirebaseKey(value) {
@@ -253,6 +269,7 @@
     }
 
     sendBtnElement.addEventListener("click", handleSend);
+    promptElement.addEventListener("input", vibrateOnPromptUpdate);
 
     main();
   </script>
