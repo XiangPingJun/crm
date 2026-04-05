@@ -2,6 +2,8 @@
 <input type="text" id="FIREBASE_DB_URL" placeholder="FIREBASE_DB_URL">
 <input type="text" id="FIREBASE_EMAIL" placeholder="FIREBASE_EMAIL">
 <input type="text" id="FIREBASE_PASSWORD" placeholder="FIREBASE_PASSWORD">
+<input type="text" id="OPENROUTER_API_KEY" placeholder="OPENROUTER_API_KEY">
+<input type="text" id="ABOUT_ME" placeholder="ABOUT_ME">
 <button id="saveBtn">Save</button>
 
 <script>
@@ -10,6 +12,8 @@
     localStorage.FIREBASE_DB_URL = document.getElementById("FIREBASE_DB_URL").value;
     localStorage.FIREBASE_EMAIL = document.getElementById("FIREBASE_EMAIL").value;
     localStorage.FIREBASE_PASSWORD = document.getElementById("FIREBASE_PASSWORD").value;
+    localStorage.OPENROUTER_API_KEY = document.getElementById("OPENROUTER_API_KEY").value;
+    localStorage.ABOUT_ME = document.getElementById("ABOUT_ME").value;
     alert("Configuration saved!");
-  })
+  });
 </script>
