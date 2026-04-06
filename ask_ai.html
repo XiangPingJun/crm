@@ -9,8 +9,7 @@
     * {
       background-color: #3E3E42;
       color: #E6E6E6;
-      font-size: 1.5rem;
-      padding-left: 1rem;
+      font-size: 1.75rem;
     }
 
     textarea {
@@ -49,7 +48,7 @@
     let lastChatName = "";
     let chatItems = [];
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let OPENROUTER_MODEL = "openai/gpt-5.4";
+    let OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
 
     function setStatus(text) {
       contentElement.textContent = text;
