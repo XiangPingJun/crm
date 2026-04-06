@@ -10,10 +10,19 @@
       color: #E6E6E6;
       font-size: 1.75rem;
     }
+
+    select {
+      width: 100%;
+      margin-bottom: 1rem;
+      background-color: #3E3E42;
+      color: #E6E6E6;
+      font-size: 1.75rem;
+    }
   </style>
 </head>
 
 <body>
+  <select id="chatSelect"></select>
   <div id="content" style="white-space: pre-line;">等待 Firebase 更新...</div>
 
   <script type="module">
@@ -34,17 +43,101 @@
     let auth = getAuth(app);
     let database = getDatabase(app);
     let releaseChatAiListener = null;
+    let chatSelectElement = document.querySelector("#chatSelect");
     let contentElement = document.querySelector("#content");
+    let lastChatName = "";
+    let currentChatName = "";
+    let chatItems = [];
 
     function setStatus(text) {
       contentElement.textContent = text;
       contentElement.classList.add("empty");
     }
 
+    function decodeFirebaseKey(value) {
+      return String(value || "").replace(/%([0-9A-F]{2})/g, function (_, hex) {
+        return String.fromCharCode(parseInt(hex, 16));
+      });
+    }
+
     function escapeFirebaseKey(value) {
       return String(value || "").replace(/[.#$\/\[\]\u0000-\u001F\u007F]/g, function (char) {
         return "%" + char.charCodeAt(0).toString(16).toUpperCase();
       });
+    }
+
+    function getElapsedDaysLabel(timestamp) {
+      let elapsedTime = Date.now() - (Number(timestamp) || 0);
+      let elapsedDays = Math.floor(elapsedTime / (24 * 60 * 60 * 1000));
+
+      if (elapsedDays < 0) {
+        elapsedDays = 0;
+      }
+
+      return String(elapsedDays);
+    }
+
+    function normalizeChatNamesFromUpdatedMap(updatedMap) {
+      if (!updatedMap || typeof updatedMap !== "object") {
+        return [];
+      }
+
+      let keys = Object.keys(updatedMap);
+      keys.sort(function (left, right) {
+        return (Number(updatedMap[right]) || 0) - (Number(updatedMap[left]) || 0);
+      });
+
+      let normalizedNames = [];
+
+      for (let i = 0; i < keys.length; i++) {
+        let chatName = decodeFirebaseKey(keys[i]);
+        let elapsedDays = getElapsedDaysLabel(updatedMap[keys[i]]);
+
+        normalizedNames.push({
+          name: chatName,
+          label: chatName + "(" + elapsedDays + ")",
+        });
+      }
+
+      return normalizedNames;
+    }
+
+    function renderChatOptions() {
+      let selectedChatName = chatSelectElement.value;
+      let preferredChatName = lastChatName || currentChatName || selectedChatName;
+
+      chatSelectElement.innerHTML = "";
+
+      if (!chatItems.length) {
+        let option = document.createElement("option");
+        option.value = "";
+        option.textContent = "等待 chat_updated...";
+        chatSelectElement.appendChild(option);
+        chatSelectElement.disabled = true;
+        currentChatName = "";
+        watchChatAi("");
+        return;
+      }
+
+      chatSelectElement.disabled = false;
+
+      for (let i = 0; i < chatItems.length; i++) {
+        let chatItem = chatItems[i];
+        let option = document.createElement("option");
+        option.value = chatItem.name;
+        option.textContent = chatItem.label;
+        chatSelectElement.appendChild(option);
+      }
+
+      if (preferredChatName && chatItems.some(function (chatItem) { return chatItem.name === preferredChatName; })) {
+        chatSelectElement.value = preferredChatName;
+      } else {
+        chatSelectElement.value = chatItems[0].name;
+      }
+
+      if (chatSelectElement.value !== currentChatName) {
+        watchChatAi(chatSelectElement.value);
+      }
     }
 
     function renderContent(chatName, content) {
@@ -59,6 +152,8 @@
     }
 
     function watchChatAi(chatName) {
+      currentChatName = chatName || "";
+
       if (releaseChatAiListener) {
         releaseChatAiListener();
         releaseChatAiListener = null;
@@ -85,12 +180,21 @@
       try {
         setStatus("登入 Firebase");
         await signInWithEmailAndPassword(auth, firebaseEmail, firebasePassword);
-        setStatus("監聽 last_chat");
+        setStatus("監聽資料中");
+
+        let chatUpdatedRef = ref(database, "chat_updated");
+        onValue(chatUpdatedRef, function (snapshot) {
+          chatItems = normalizeChatNamesFromUpdatedMap(snapshot.val());
+          renderChatOptions();
+        }, function (error) {
+          setStatus("chat_updated 監聽失敗");
+          renderEmpty(error.message || "chat_updated 監聽失敗");
+        });
 
         let lastChatRef = ref(database, "last_chat");
         onValue(lastChatRef, function (snapshot) {
-          let chatName = snapshot.val() ? String(snapshot.val()).trim() : "";
-          watchChatAi(chatName);
+          lastChatName = snapshot.val() ? String(snapshot.val()).trim() : "";
+          renderChatOptions();
         }, function (error) {
           setStatus("last_chat 監聽失敗");
           renderEmpty(error.message || "last_chat 監聽失敗");
@@ -100,6 +204,11 @@
         renderEmpty(error.message || "Firebase 初始化失敗");
       }
     }
+
+    chatSelectElement.addEventListener("change", function () {
+      let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
+      watchChatAi(selectedChatName);
+    });
 
     main();
   </script>
