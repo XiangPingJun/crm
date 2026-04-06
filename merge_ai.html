@@ -18,16 +18,16 @@
 </head>
 
 <body>
-  <textarea id="prompt" rows="4"></textarea>
+  <textarea id="prompt" rows="4" placeholder="輸入要合併進去的新 profile 或補充資訊"></textarea>
   <select id="chatSelect"></select>
-  <button id="sendBtn">Send</button>
+  <button id="mergeBtn">Merge</button>
   <div id="content" style="white-space: pre-line;"></div>
   <div></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getDatabase, get, onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getDatabase, get, onValue, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
     let firebaseConfig = {
       apiKey: localStorage.FIREBASE_API_KEY,
@@ -43,7 +43,7 @@
     let database = getDatabase(app);
     let promptElement = document.querySelector("#prompt");
     let chatSelectElement = document.querySelector("#chatSelect");
-    let sendBtnElement = document.querySelector("#sendBtn");
+    let mergeBtnElement = document.querySelector("#mergeBtn");
     let contentElement = document.querySelector("#content");
     let lastChatName = "";
     let chatItems = [];
@@ -214,25 +214,41 @@
       };
     }
 
-    function buildOpenRouterInput(chatName, aboutMe, profile, chats, prompt) {
+    function buildMergePrompt(chatName, aboutMe, profile, chats, prompt) {
       return [
-        "請根據以下完整資訊回答。使用繁體中文。",
+        "請使用繁體中文，將以下資料整理並合併成一份新的 profile。",
+        "輸出限制:",
+        "1. 只輸出合併後的 profile 內容，不要加前言、結語或 markdown 標題。",
+        "2. 若資料互相矛盾，優先採用聊天紀錄中較新且較具體的資訊。",
+        "3. 若資訊不足，保留模糊描述，不要自行捏造，不要忽略細節。",
+        "4. 使用緊湊敘述，節省字數。",
         "",
         "我的背景:",
         aboutMe || "",
         "",
-        "目前對話:",
+        "chatName:",
         chatName || "",
         "",
-        "對象 profile:",
+        "現有 profile:",
         buildProfileText(profile, "") || "",
         "",
         "聊天紀錄:",
         chats || "",
         "",
-        "我的提問:",
+        "要合併進去的新 profile / 補充資訊:",
         prompt || "",
       ].join("\n");
+    }
+
+    async function saveMergedProfile(chatName, profileText) {
+      let chatKey = escapeFirebaseKey(chatName);
+      let profileRef = ref(database, "profile/" + chatKey);
+      let toBeDeletedRef = ref(database, "to_be_deleted/" + chatKey);
+
+      await Promise.all([
+        set(profileRef, profileText),
+        set(toBeDeletedRef, chatName),
+      ]);
     }
 
     async function requestOpenRouter(promptText) {
@@ -242,7 +258,7 @@
           "Content-Type": "application/json",
           "Authorization": "Bearer " + localStorage.OPENROUTER_API_KEY,
           "HTTP-Referer": window.location.origin,
-          "X-Title": "ask_ai",
+          "X-Title": "merge_ai",
         },
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
@@ -272,11 +288,12 @@
       return content;
     }
 
-    async function handleSend() {
+    async function handleMerge() {
       let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
+      let mergeSourceText = promptElement.value ? String(promptElement.value).trim() : "";
 
       if (!selectedChatName) {
-        setStatus("目前沒有可送出的 chat");
+        setStatus("目前沒有可合併的 chat");
         return;
       }
 
@@ -286,26 +303,32 @@
       }
 
       try {
-        sendBtnElement.disabled = true;
+        mergeBtnElement.disabled = true;
         chatSelectElement.disabled = true;
-        setStatus("讀取資料中...");
+        promptElement.disabled = true;
+        setStatus("讀取 Firebase 資料中...");
 
         let chatContext = await readChatContext(selectedChatName);
-        let promptText = buildOpenRouterInput(
+        let promptText = buildMergePrompt(
           selectedChatName,
           localStorage.ABOUT_ME || "",
           chatContext.profile,
           chatContext.chats,
-          promptElement.value || ""
+          mergeSourceText
         );
 
-        setStatus("送出 OpenRouter...");
-        let answer = await requestOpenRouter(promptText);
-        contentElement.textContent = answer;
+        setStatus("送出 OpenRouter 合併 profile...");
+        let mergedProfile = await requestOpenRouter(promptText);
+        contentElement.textContent = mergedProfile;
+
+        setStatus("回存 profile 並標記待刪除...");
+        await saveMergedProfile(selectedChatName, mergedProfile);
+        contentElement.textContent = mergedProfile;
       } catch (error) {
         setStatus("失敗: " + (error && error.message ? error.message : error));
       } finally {
-        sendBtnElement.disabled = false;
+        mergeBtnElement.disabled = false;
+        promptElement.disabled = false;
         renderChatOptions();
       }
     }
@@ -336,7 +359,7 @@
       }
     }
 
-    sendBtnElement.addEventListener("click", handleSend);
+    mergeBtnElement.addEventListener("click", handleMerge);
 
     main();
   </script>
