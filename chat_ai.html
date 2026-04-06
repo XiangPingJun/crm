@@ -5,7 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
+    body,
+    * {
       background-color: #3E3E42;
       color: #E6E6E6;
       font-size: 1.75rem;
@@ -13,10 +14,6 @@
 
     select {
       width: 100%;
-      margin-bottom: 1rem;
-      background-color: #3E3E42;
-      color: #E6E6E6;
-      font-size: 1.75rem;
     }
   </style>
 </head>
@@ -142,7 +139,35 @@
 
     function renderContent(chatName, content) {
       let title = chatName ? "〖" + chatName + "〗" : "";
-      contentElement.textContent = title + (content || "目前 chat_ai 沒有內容");
+      let normalizedContent = String(content || "目前 chat_ai 沒有內容");
+      let fullText = title + normalizedContent;
+      let fragment = document.createDocumentFragment();
+      let pattern = /❛([\s\S]*?)❜/g;
+      let lastIndex = 0;
+      let match = null;
+
+      while ((match = pattern.exec(fullText))) {
+        if (match.index > lastIndex) {
+          fragment.appendChild(document.createTextNode(fullText.slice(lastIndex, match.index)));
+        }
+
+        fragment.appendChild(document.createTextNode(match[1]));
+
+        let copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.className = "copy-button";
+        copyButton.dataset.copyText = match[1];
+        copyButton.textContent = "⧉";
+        fragment.appendChild(copyButton);
+
+        lastIndex = pattern.lastIndex;
+      }
+
+      if (lastIndex < fullText.length) {
+        fragment.appendChild(document.createTextNode(fullText.slice(lastIndex)));
+      }
+
+      contentElement.replaceChildren(fragment);
       contentElement.classList.remove("empty");
     }
 
@@ -208,6 +233,28 @@
     chatSelectElement.addEventListener("change", function () {
       let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
       watchChatAi(selectedChatName);
+    });
+
+    contentElement.addEventListener("click", async function (event) {
+      let target = event.target;
+
+      if (!(target instanceof HTMLButtonElement) || !target.classList.contains("copy-button")) {
+        return;
+      }
+
+      let copyText = target.dataset.copyText || "";
+      let originalText = target.textContent;
+
+      try {
+        await navigator.clipboard.writeText(copyText);
+        target.textContent = "✔";
+      } catch (error) {
+        target.textContent = "複製失敗";
+      }
+
+      window.setTimeout(function () {
+        target.textContent = originalText || "複製";
+      }, 1200);
     });
 
     main();
