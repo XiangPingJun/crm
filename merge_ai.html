@@ -46,7 +46,6 @@
     let chatSelectElement = document.querySelector("#chatSelect");
     let mergeBtnElement = document.querySelector("#mergeBtn");
     let contentElement = document.querySelector("#content");
-    let lastChatName = "";
     let chatItems = [];
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
@@ -63,7 +62,6 @@
 
     function renderChatOptions() {
       let selectedChatName = chatSelectElement.value;
-      let preferredChatName = lastChatName || selectedChatName;
 
       chatSelectElement.innerHTML = "";
 
@@ -86,8 +84,8 @@
         chatSelectElement.appendChild(option);
       }
 
-      if (preferredChatName && chatItems.some(function (chatItem) { return chatItem.name === preferredChatName; })) {
-        chatSelectElement.value = preferredChatName;
+      if (selectedChatName && chatItems.some(function (chatItem) { return chatItem.name === selectedChatName; })) {
+        chatSelectElement.value = selectedChatName;
         return;
       }
 
@@ -346,14 +344,6 @@
           renderChatOptions();
         }, function (error) {
           setStatus("chat_updated 監聽失敗: " + error.message);
-        });
-
-        let lastChatRef = ref(database, "last_chat");
-        onValue(lastChatRef, function (snapshot) {
-          lastChatName = snapshot.val() ? String(snapshot.val()).trim() : "";
-          renderChatOptions();
-        }, function (error) {
-          setStatus("last_chat 監聽失敗");
         });
       } catch (error) {
         setStatus("初始化失敗");
