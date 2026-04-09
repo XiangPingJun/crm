@@ -139,11 +139,11 @@
     }
 
     function renderContent(chatName, content) {
-      let title = chatName ? "〖" + chatName + "〗" : "";
+      let title = chatName;
       let normalizedContent = String(content || "目前 chat_ai 沒有內容");
       let fullText = title + normalizedContent;
       let fragment = document.createDocumentFragment();
-      let pattern = /❛([\s\S]*?)❜/g;
+      let pattern = /〖([\s\S]*?)〗/g;
       let lastIndex = 0;
       let match = null;
 
