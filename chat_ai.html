@@ -12,21 +12,24 @@
       font-size: 1.25rem;
     }
 
-    select {
+    textarea {
       width: 100%;
     }
   </style>
 </head>
 
 <body>
+  <textarea id="prompt" rows="2"></textarea>
   <select id="chatSelect"></select>
-  <div id="content" style="white-space: pre-line;">等待 Firebase 更新...</div>
+  <button id="askBtn">Ask</button>
+  <button id="mergeBtn">Merge</button>
+  <div id="content" style="white-space: pre-line;"></div>
   <div></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getDatabase, onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getDatabase, get, onValue, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
     let firebaseConfig = {
       apiKey: localStorage.FIREBASE_API_KEY,
@@ -41,21 +44,72 @@
     let auth = getAuth(app);
     let database = getDatabase(app);
     let releaseChatAiListener = null;
+    let promptElement = document.querySelector("#prompt");
     let chatSelectElement = document.querySelector("#chatSelect");
+    let askBtnElement = document.querySelector("#askBtn");
+    let mergeBtnElement = document.querySelector("#mergeBtn");
     let contentElement = document.querySelector("#content");
-    let lastChatName = "";
-    let currentChatName = "";
     let chatItems = [];
+    let currentChatName = "";
+    let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+    let ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
+    let MERGE_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview";
 
     function setStatus(text) {
       contentElement.textContent = text;
-      contentElement.classList.add("empty");
+    }
+
+    function setControlsDisabled(disabled) {
+      let nextDisabled = Boolean(disabled);
+
+      askBtnElement.disabled = nextDisabled;
+      mergeBtnElement.disabled = nextDisabled;
+      chatSelectElement.disabled = nextDisabled || !chatItems.length;
+      promptElement.disabled = nextDisabled;
     }
 
     function decodeFirebaseKey(value) {
       return String(value || "").replace(/%([0-9A-F]{2})/g, function (_, hex) {
         return String.fromCharCode(parseInt(hex, 16));
       });
+    }
+
+    function renderChatOptions() {
+      let selectedChatName = chatSelectElement.value;
+      let preferredChatName = currentChatName || selectedChatName;
+
+      chatSelectElement.innerHTML = "";
+
+      if (!chatItems.length) {
+        let option = document.createElement("option");
+        option.value = "";
+        option.textContent = "等待 chat_updated...";
+        chatSelectElement.appendChild(option);
+        chatSelectElement.disabled = true;
+        currentChatName = "";
+        watchChatAi("");
+        return;
+      }
+
+      setControlsDisabled(false);
+
+      for (let i = 0; i < chatItems.length; i++) {
+        let chatItem = chatItems[i];
+        let option = document.createElement("option");
+        option.value = chatItem.name;
+        option.textContent = chatItem.label;
+        chatSelectElement.appendChild(option);
+      }
+
+      if (preferredChatName && chatItems.some(function (chatItem) { return chatItem.name === preferredChatName; })) {
+        chatSelectElement.value = preferredChatName;
+      } else {
+        chatSelectElement.value = chatItems[0].name;
+      }
+
+      if (chatSelectElement.value !== currentChatName) {
+        watchChatAi(chatSelectElement.value);
+      }
     }
 
     function escapeFirebaseKey(value) {
@@ -100,42 +154,72 @@
       return normalizedNames;
     }
 
-    function renderChatOptions() {
-      let selectedChatName = chatSelectElement.value;
-      let preferredChatName = lastChatName || currentChatName || selectedChatName;
+    function buildProfileText(profile, prefix) {
+      let label = prefix ? String(prefix) : "";
 
-      chatSelectElement.innerHTML = "";
-
-      if (!chatItems.length) {
-        let option = document.createElement("option");
-        option.value = "";
-        option.textContent = "等待 chat_updated...";
-        chatSelectElement.appendChild(option);
-        chatSelectElement.disabled = true;
-        currentChatName = "";
-        watchChatAi("");
-        return;
+      if (profile === null || profile === undefined) {
+        return "";
       }
 
-      chatSelectElement.disabled = false;
-
-      for (let i = 0; i < chatItems.length; i++) {
-        let chatItem = chatItems[i];
-        let option = document.createElement("option");
-        option.value = chatItem.name;
-        option.textContent = chatItem.label;
-        chatSelectElement.appendChild(option);
+      if (typeof profile === "string" || typeof profile === "number" || typeof profile === "boolean") {
+        return label + String(profile).trim();
       }
 
-      if (preferredChatName && chatItems.some(function (chatItem) { return chatItem.name === preferredChatName; })) {
-        chatSelectElement.value = preferredChatName;
-      } else {
-        chatSelectElement.value = chatItems[0].name;
+      if (Array.isArray(profile)) {
+        let lines = [];
+
+        for (let i = 0; i < profile.length; i++) {
+          let itemText = buildProfileText(profile[i], label ? label + (i + 1) + ": " : "");
+          if (itemText) {
+            lines.push(itemText);
+          }
+        }
+
+        return lines.join("\n");
       }
 
-      if (chatSelectElement.value !== currentChatName) {
-        watchChatAi(chatSelectElement.value);
+      if (typeof profile === "object") {
+        let keys = Object.keys(profile);
+        let lines = [];
+
+        for (let i = 0; i < keys.length; i++) {
+          let key = keys[i];
+          let itemText = buildProfileText(profile[key], key + ": ");
+          if (itemText) {
+            lines.push(itemText);
+          }
+        }
+
+        return lines.join("\n");
       }
+
+      return "";
+    }
+
+    function extractOpenRouterText(content) {
+      if (!content) {
+        return "";
+      }
+
+      if (typeof content === "string") {
+        return content;
+      }
+
+      if (!Array.isArray(content)) {
+        return "";
+      }
+
+      return content.map(function (item) {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        if (item && typeof item.text === "string") {
+          return item.text;
+        }
+
+        return "";
+      }).filter(Boolean).join("\n");
     }
 
     function renderContent(chatName, content) {
@@ -170,12 +254,10 @@
       }
 
       contentElement.replaceChildren(fragment);
-      contentElement.classList.remove("empty");
     }
 
     function renderEmpty(message) {
       contentElement.textContent = message;
-      contentElement.classList.add("empty");
     }
 
     function watchChatAi(chatName) {
@@ -193,45 +275,211 @@
 
       let chatKey = escapeFirebaseKey(chatName);
       let chatAiRef = ref(database, "chat_ai/" + chatKey);
-      setStatus("監聽中");
 
       releaseChatAiListener = onValue(chatAiRef, function (snapshot) {
         renderContent(chatName, snapshot.val() || "目前 chat_ai 沒有內容");
       }, function (error) {
-        setStatus("chat_ai 監聽失敗");
         renderEmpty(error.message || "chat_ai 監聽失敗");
       });
+    }
+
+    async function readChatContext(chatName) {
+      let chatKey = escapeFirebaseKey(chatName);
+      let profileRef = ref(database, "profile/" + chatKey);
+      let chatsRef = ref(database, "chats/" + chatKey);
+      let results = await Promise.all([get(profileRef), get(chatsRef)]);
+
+      return {
+        profile: results[0].exists() ? results[0].val() : null,
+        chats: results[1].exists() ? results[1].val() : "",
+      };
+    }
+
+    function buildOpenRouterInput(chatName, aboutMe, profile, chats, prompt) {
+      return [
+        "請根據以下完整資訊回答。使用繁體中文。",
+        "",
+        "我的背景:",
+        aboutMe || "",
+        "",
+        "目前對話:",
+        chatName || "",
+        "",
+        "對象 profile:",
+        buildProfileText(profile, "") || "",
+        "",
+        "聊天紀錄:",
+        chats || "",
+        "",
+        "我的提問:",
+        prompt || "",
+      ].join("\n");
+    }
+
+    function buildMergePrompt(profile, chats, prompt) {
+      return [
+        "請使用繁體中文，將以下資料整理並合併成一份新的 profile。",
+        "輸出限制:",
+        "1. 只輸出合併後的 profile 內容，不要加前言、結語或 markdown 標題。",
+        "2. 若資料互相矛盾，優先採用聊天紀錄中較新且較具體的資訊。",
+        "3. 若資訊不足，保留模糊描述，不要自行捏造，不要忽略細節。",
+        "4. 請將其極致壓縮，去除所有不必要的文法結構、連接詞與敬語。使用高密度的關鍵字、短語或資訊實體（Entities）來重組內容，只要確保 AI 能精準還原原本的邏輯與資訊即可。",
+        "",
+        "現有 profile:",
+        buildProfileText(profile, "") || "",
+        "",
+        "聊天紀錄:",
+        chats || "",
+        "",
+        "要合併進去的新 profile / 補充資訊:",
+        prompt || "",
+      ].join("\n");
+    }
+
+    async function saveMergedProfile(chatName, profileText) {
+      let chatKey = escapeFirebaseKey(chatName);
+      let profileRef = ref(database, "profile/" + chatKey);
+      let toBeDeletedRef = ref(database, "to_be_deleted/" + chatKey);
+
+      await Promise.all([
+        set(profileRef, profileText),
+        set(toBeDeletedRef, chatName),
+      ]);
+    }
+
+    async function requestOpenRouter(promptText, model, title) {
+      let response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + localStorage.OPENROUTER_API_KEY,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": title,
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            {
+              role: "user",
+              content: promptText,
+            },
+          ],
+        }),
+      });
+
+      let data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data && data.error && data.error.message ? data.error.message : JSON.stringify(data));
+      }
+
+      let choice = data && data.choices && data.choices.length ? data.choices[0] : null;
+      let message = choice && choice.message ? choice.message : null;
+      let content = extractOpenRouterText(message ? message.content : "");
+
+      if (!content) {
+        throw new Error("OpenRouter 回傳內容為空");
+      }
+
+      return content;
+    }
+
+    async function handleAsk() {
+      let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
+
+      if (!selectedChatName) {
+        setStatus("目前沒有可送出的 chat");
+        return;
+      }
+
+      if (!localStorage.OPENROUTER_API_KEY) {
+        setStatus("缺少 localStorage.OPENROUTER_API_KEY");
+        return;
+      }
+
+      try {
+        setControlsDisabled(true);
+        setStatus("讀取資料中...");
+
+        let chatContext = await readChatContext(selectedChatName);
+        let promptText = buildOpenRouterInput(
+          selectedChatName,
+          localStorage.ABOUT_ME || "",
+          chatContext.profile,
+          chatContext.chats,
+          promptElement.value || ""
+        );
+
+        setStatus("送出 OpenRouter...");
+        let answer = await requestOpenRouter(promptText, ASK_OPENROUTER_MODEL, "ask_ai");
+        contentElement.textContent = answer;
+      } catch (error) {
+        setStatus("失敗: " + (error && error.message ? error.message : error));
+      } finally {
+        setControlsDisabled(false);
+        renderChatOptions();
+      }
+    }
+
+    async function handleMerge() {
+      let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
+      let mergeSourceText = promptElement.value ? String(promptElement.value).trim() : "";
+
+      if (!selectedChatName) {
+        setStatus("目前沒有可合併的 chat");
+        return;
+      }
+
+      if (!localStorage.OPENROUTER_API_KEY) {
+        setStatus("缺少 localStorage.OPENROUTER_API_KEY");
+        return;
+      }
+
+      try {
+        setControlsDisabled(true);
+        setStatus("讀取 Firebase 資料中...");
+
+        let chatContext = await readChatContext(selectedChatName);
+        let promptText = buildMergePrompt(
+          chatContext.profile,
+          chatContext.chats,
+          mergeSourceText
+        );
+
+        setStatus("送出 OpenRouter 合併 profile...");
+        let mergedProfile = await requestOpenRouter(promptText, MERGE_OPENROUTER_MODEL, "merge_ai");
+
+        setStatus("回存 profile 並標記待刪除...");
+        await saveMergedProfile(selectedChatName, mergedProfile);
+        contentElement.textContent = mergedProfile;
+      } catch (error) {
+        setStatus("失敗: " + (error && error.message ? error.message : error));
+      } finally {
+        setControlsDisabled(false);
+        renderChatOptions();
+      }
     }
 
     async function main() {
       try {
         setStatus("登入 Firebase");
         await signInWithEmailAndPassword(auth, firebaseEmail, firebasePassword);
-        setStatus("監聽資料中");
+        setStatus("");
 
         let chatUpdatedRef = ref(database, "chat_updated");
         onValue(chatUpdatedRef, function (snapshot) {
           chatItems = normalizeChatNamesFromUpdatedMap(snapshot.val());
           renderChatOptions();
         }, function (error) {
-          setStatus("chat_updated 監聽失敗");
-          renderEmpty(error.message || "chat_updated 監聽失敗");
-        });
-
-        let lastChatRef = ref(database, "last_chat");
-        onValue(lastChatRef, function (snapshot) {
-          lastChatName = snapshot.val() ? String(snapshot.val()).trim() : "";
-          renderChatOptions();
-        }, function (error) {
-          setStatus("last_chat 監聽失敗");
-          renderEmpty(error.message || "last_chat 監聽失敗");
+          setStatus("chat_updated 監聽失敗: " + error.message);
         });
       } catch (error) {
         setStatus("初始化失敗");
-        renderEmpty(error.message || "Firebase 初始化失敗");
       }
     }
 
+    askBtnElement.addEventListener("click", handleAsk);
+    mergeBtnElement.addEventListener("click", handleMerge);
     chatSelectElement.addEventListener("change", function () {
       let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
       watchChatAi(selectedChatName);
