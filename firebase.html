@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Textarea Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #16181d;
+      --bg-elevated: rgba(27, 31, 39, 0.9);
+      --bg-soft: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #f3efe6;
+      --muted: #b7b0a3;
+      --accent: #d4ff61;
+      --accent-strong: #a9dd17;
+      --danger: #ff8b8b;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "PingFang TC", "Noto Sans TC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(212, 255, 97, 0.16), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(97, 198, 255, 0.14), transparent 28%),
+        linear-gradient(145deg, #111318 0%, #191d25 52%, #12151b 100%);
+      padding: 32px 20px 48px;
+    }
+
+    .shell {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .sidebar,
+    .editor-panel {
+      display: grid;
+      gap: 16px;
+    }
+
+    input,
+    textarea,
+    button {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--bg-soft);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 14px 16px;
+    }
+
+    input {
+      min-height: 52px;
+    }
+
+    textarea {
+      min-height: 58vh;
+      resize: vertical;
+      line-height: 1.6;
+      font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+      tab-size: 2;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .row>* {
+      flex: 0 0 auto;
+    }
+
+    button {
+      min-height: 52px;
+      padding: 0 18px;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(212, 255, 97, 0.52);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .button-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, #c7ff47 100%);
+      color: #182100;
+      border-color: transparent;
+      font-weight: 700;
+    }
+
+    .button-secondary {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .button-danger {
+      color: var(--danger);
+    }
+
+    .status {
+      min-height: 24px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      white-space: pre-wrap;
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .tree-panel {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+    }
+
+    .tree-body {
+      max-height: 62vh;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .tree-empty {
+      padding: 16px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .tree-node {
+      margin-left: 0;
+    }
+
+    .tree-children {
+      margin-left: 18px;
+      padding-left: 10px;
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      margin: 4px 0;
+    }
+
+    .tree-toggle,
+    .tree-label {
+      border-radius: 12px;
+      min-height: 32px;
+      padding: 0 10px;
+    }
+
+    .tree-toggle {
+      min-width: 32px;
+      padding: 0;
+      font-weight: 700;
+    }
+
+    .tree-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tree-label.active {
+      background: rgba(212, 255, 97, 0.16);
+      border-color: rgba(212, 255, 97, 0.34);
+      color: #f8ffd6;
+    }
+
+    .node-key {
+      font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+      font-size: 0.94rem;
+    }
+
+    .mode-panel {
+      display: none;
+      gap: 16px;
+    }
+
+    .mode-panel.active {
+      display: grid;
+    }
+
+    @media (max-width: 780px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      body {
+        padding-inline: 14px;
+      }
+
+      .panel {
+        border-radius: 20px;
+      }
+
+      textarea {
+        min-height: 46vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <section class="panel">
+      <div class="workspace">
+        <aside class="sidebar">
+          <div class="tree-panel">
+            <div id="treeBody" class="tree-body"></div>
+          </div>
+        </aside>
+
+        <section class="editor-panel">
+          <section id="leafPanel" class="mode-panel">
+            <div class="row">
+              <button id="saveBtn" class="button-primary" type="button">儲存文字</button>
+              <button id="clearBtn" class="button-secondary button-danger" type="button">刪除節點</button>
+            </div>
+
+            <div class="field">
+              <label for="valueTextarea">Value</label>
+              <textarea id="valueTextarea" spellcheck="false" placeholder="leaf node 的 string 內容"></textarea>
+            </div>
+          </section>
+
+          <section id="objectPanel" class="mode-panel">
+            <div>
+              <div>
+                <label for="childKeyInput">New Sub Node Key</label>
+                <input id="childKeyInput" type="text" placeholder="例如: summary 或 prompt_v2">
+              </div>
+            </div>
+
+            <div class="row">
+              <button id="addChildBtn" class="button-secondary" type="button">新增 Sub Node</button>
+              <button id="deleteNodeBtn" class="button-secondary button-danger" type="button">刪除目前節點</button>
+            </div>
+          </section>
+
+          <section id="emptyPanel" class="mode-panel active">
+          </section>
+
+          <section id="missingPanel" class="mode-panel">
+          </section>
+        </section>
+      </div>
+
+      <div id="status" class="status"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { getDatabase, get, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    let firebaseConfig = {
+      apiKey: localStorage.FIREBASE_API_KEY,
+      authDomain: "social-crm-80a3a.firebaseapp.com",
+      databaseURL: localStorage.FIREBASE_DB_URL,
+    };
+
+    let saveBtnElement = document.querySelector("#saveBtn");
+    let clearBtnElement = document.querySelector("#clearBtn");
+    let addChildBtnElement = document.querySelector("#addChildBtn");
+    let deleteNodeBtnElement = document.querySelector("#deleteNodeBtn");
+    let childKeyInputElement = document.querySelector("#childKeyInput");
+    let valueTextareaElement = document.querySelector("#valueTextarea");
+    let statusElement = document.querySelector("#status");
+    let treeBodyElement = document.querySelector("#treeBody");
+    let leafPanelElement = document.querySelector("#leafPanel");
+    let objectPanelElement = document.querySelector("#objectPanel");
+    let emptyPanelElement = document.querySelector("#emptyPanel");
+    let missingPanelElement = document.querySelector("#missingPanel");
+
+    let app = null;
+    let auth = null;
+    let database = null;
+    let isReady = false;
+    let treeData = undefined;
+    let expandedPaths = new Set([""]);
+    let selectedPath = "";
+    let currentNodeType = "unknown";
+    let currentNodeValue = undefined;
+
+    setControlsDisabled(true);
+
+    function setStatus(message, isError) {
+      statusElement.textContent = message || "";
+      statusElement.classList.toggle("error", Boolean(isError));
+    }
+
+    function setControlsDisabled(disabled) {
+      let nextDisabled = Boolean(disabled);
+
+      saveBtnElement.disabled = nextDisabled;
+      clearBtnElement.disabled = nextDisabled;
+      addChildBtnElement.disabled = nextDisabled;
+      deleteNodeBtnElement.disabled = nextDisabled;
+      childKeyInputElement.disabled = nextDisabled;
+      valueTextareaElement.disabled = nextDisabled;
+    }
+
+    function normalizePath(path) {
+      return String(path || "").trim().replace(/^\/+|\/+$/g, "");
+    }
+
+    function serializeValue(value) {
+      return typeof value === "string" ? value : "";
+    }
+
+    function getDatabaseRef(path) {
+      let normalizedPath = normalizePath(path);
+
+      if (!normalizedPath) {
+        return ref(database);
+      }
+
+      return ref(database, normalizedPath);
+    }
+
+    function joinPath(parentPath, childKey) {
+      let normalizedParentPath = normalizePath(parentPath);
+      let normalizedChildKey = String(childKey || "").trim();
+
+      if (!normalizedParentPath) {
+        return normalizedChildKey;
+      }
+
+      return normalizedParentPath + "/" + normalizedChildKey;
+    }
+
+    function isExpandableValue(value) {
+      return Boolean(value) && typeof value === "object";
+    }
+
+    function getNodeLabel(path) {
+      let normalizedPath = normalizePath(path);
+
+      if (!normalizedPath) {
+        return "/";
+      }
+
+      let parts = normalizedPath.split("/");
+      return parts[parts.length - 1] || "/";
+    }
+
+    function getTreeRootPath() {
+      return "";
+    }
+
+    function setSelectedPath(path) {
+      let normalizedPath = normalizePath(path);
+
+      selectedPath = normalizedPath;
+      localStorage.FIREBASE_TEXTAREA_EDITOR_PATH = normalizedPath;
+    }
+
+    function validateFirebaseKey(key) {
+      return !/[.#$\/[\]\u0000-\u001F\u007F]/.test(key);
+    }
+
+    function getParentPath(path) {
+      let normalizedPath = normalizePath(path);
+
+      if (!normalizedPath) {
+        return "";
+      }
+
+      let parts = normalizedPath.split("/");
+      parts.pop();
+      return parts.join("/");
+    }
+
+    function setModePanel(mode) {
+      leafPanelElement.classList.toggle("active", mode === "leaf");
+      objectPanelElement.classList.toggle("active", mode === "object");
+      emptyPanelElement.classList.toggle("active", mode === "empty");
+      missingPanelElement.classList.toggle("active", mode === "missing");
+    }
+
+    function updateEditorState(value, exists) {
+      currentNodeValue = value;
+
+      if (!exists) {
+        currentNodeType = "missing";
+        valueTextareaElement.value = "";
+        setModePanel("missing");
+        return;
+      }
+
+      if (typeof value === "string") {
+        currentNodeType = "leaf";
+        valueTextareaElement.value = serializeValue(value);
+        setModePanel("leaf");
+        return;
+      }
+
+      if (value && typeof value === "object") {
+        currentNodeType = "object";
+        valueTextareaElement.value = "";
+        setModePanel("object");
+        return;
+      }
+
+      currentNodeType = "unsupported";
+      valueTextareaElement.value = "";
+      setModePanel("empty");
+    }
+
+    function renderTreeEmpty(message) {
+      treeBodyElement.innerHTML = "";
+
+      let emptyElement = document.createElement("div");
+      emptyElement.className = "tree-empty";
+      emptyElement.textContent = message;
+      treeBodyElement.appendChild(emptyElement);
+    }
+
+    function renderTreeNode(path, value) {
+      let nodeElement = document.createElement("div");
+      nodeElement.className = "tree-node";
+
+      let itemElement = document.createElement("div");
+      itemElement.className = "tree-item";
+      nodeElement.appendChild(itemElement);
+
+      let expandable = isExpandableValue(value);
+      let normalizedPath = normalizePath(path);
+
+      if (expandable) {
+        let toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = "tree-toggle";
+        toggleButton.textContent = expandedPaths.has(normalizedPath) ? "-" : "+";
+        toggleButton.addEventListener("click", function () {
+          if (expandedPaths.has(normalizedPath)) {
+            expandedPaths.delete(normalizedPath);
+          } else {
+            expandedPaths.add(normalizedPath);
+          }
+
+          renderTree();
+        });
+        itemElement.appendChild(toggleButton);
+      }
+
+      let labelButton = document.createElement("button");
+      labelButton.type = "button";
+      labelButton.className = "tree-label" + (selectedPath === normalizedPath ? " active" : "");
+      labelButton.addEventListener("click", function () {
+        if (expandable) {
+          expandedPaths.add(normalizedPath);
+        }
+
+        setSelectedPath(normalizedPath);
+        renderTree();
+        loadValue(normalizedPath);
+      });
+
+      let keyElement = document.createElement("span");
+      keyElement.className = "node-key";
+      keyElement.textContent = getNodeLabel(path);
+      labelButton.appendChild(keyElement);
+
+      itemElement.appendChild(labelButton);
+
+      if (expandable && expandedPaths.has(normalizedPath)) {
+        let childrenElement = document.createElement("div");
+        childrenElement.className = "tree-children";
+
+        let keys = Object.keys(value);
+        keys.sort(function (left, right) {
+          return left.localeCompare(right, "zh-Hant");
+        });
+
+        for (let i = 0; i < keys.length; i++) {
+          let childKey = keys[i];
+          childrenElement.appendChild(renderTreeNode(joinPath(normalizedPath, childKey), value[childKey]));
+        }
+
+        nodeElement.appendChild(childrenElement);
+      }
+
+      return nodeElement;
+    }
+
+    function renderTree() {
+      treeBodyElement.innerHTML = "";
+
+      if (treeData === undefined) {
+        renderTreeEmpty("尚未載入樹狀資料。");
+        return;
+      }
+
+      let rootPath = getTreeRootPath();
+
+      if (treeData === null) {
+        renderTreeEmpty("目前 root path 不存在資料。");
+        return;
+      }
+
+      treeBodyElement.appendChild(renderTreeNode(rootPath, treeData));
+    }
+
+    async function loadValue(path) {
+      let normalizedPath = normalizePath(path || selectedPath);
+
+      setSelectedPath(normalizedPath);
+
+      try {
+        setControlsDisabled(true);
+        setStatus("讀取中...");
+
+        let snapshot = await get(getDatabaseRef(normalizedPath));
+
+        if (!snapshot.exists()) {
+          updateEditorState(undefined, false);
+          setStatus("此路徑目前不存在。請先選擇一個 object node，並在它底下新增 sub node。", true);
+          return;
+        }
+
+        let value = snapshot.val();
+        updateEditorState(value, true);
+
+        if (typeof value !== "string" && !(value && typeof value === "object")) {
+          setStatus("leaf node 只支援 string；目前節點型別無法直接編輯。", true);
+          return;
+        }
+
+        setStatus("讀取完成");
+      } catch (error) {
+        setStatus("讀取失敗: " + (error && error.message ? error.message : error), true);
+      } finally {
+        setControlsDisabled(false);
+      }
+    }
+
+    async function saveValue() {
+      let path = normalizePath(selectedPath);
+
+      try {
+        setControlsDisabled(true);
+        setStatus("儲存中...");
+
+        if (currentNodeType !== "leaf") {
+          throw new Error("只有 leaf node 可以直接儲存文字");
+        }
+
+        let value = valueTextareaElement.value;
+
+        await set(getDatabaseRef(path), value);
+        setStatus("儲存完成");
+        await loadTree();
+        await loadValue(path);
+      } catch (error) {
+        setStatus("儲存失敗: " + (error && error.message ? error.message : error), true);
+      } finally {
+        setControlsDisabled(false);
+      }
+    }
+
+    async function loadTree() {
+      let rootPath = getTreeRootPath();
+
+      try {
+        setControlsDisabled(true);
+        setStatus("載入樹狀資料中...");
+
+        let snapshot = await get(getDatabaseRef(rootPath));
+        treeData = snapshot.exists() ? snapshot.val() : null;
+        expandedPaths = new Set([rootPath]);
+
+        let currentSelectedPath = normalizePath(selectedPath);
+        if (currentSelectedPath) {
+          let parts = currentSelectedPath.split("/");
+          let currentPath = "";
+
+          for (let i = 0; i < parts.length; i++) {
+            currentPath = joinPath(currentPath, parts[i]);
+            expandedPaths.add(currentPath);
+          }
+        }
+
+        renderTree();
+        setStatus("樹狀資料已更新");
+      } catch (error) {
+        treeData = undefined;
+        renderTreeEmpty("樹狀資料載入失敗");
+        setStatus("樹狀資料載入失敗: " + (error && error.message ? error.message : error), true);
+      } finally {
+        setControlsDisabled(false);
+      }
+    }
+
+    async function addChildNode() {
+      let parentPath = normalizePath(selectedPath);
+      let childKey = String(childKeyInputElement.value || "").trim();
+      let childPath = joinPath(parentPath, childKey);
+
+      if (!childKey) {
+        setStatus("請先輸入 sub node key", true);
+        return;
+      }
+
+      if (!validateFirebaseKey(childKey)) {
+        setStatus("sub node key 不能包含 . # $ / [ ] 或控制字元", true);
+        return;
+      }
+
+      try {
+        setControlsDisabled(true);
+        setStatus("新增 sub node 中...");
+
+        if (currentNodeType !== "object") {
+          throw new Error("只有 object node 可以新增 sub node");
+        }
+
+        await set(getDatabaseRef(childPath), "");
+
+        childKeyInputElement.value = "";
+        expandedPaths.add(parentPath);
+        setSelectedPath(childPath);
+        await loadTree();
+        await loadValue(childPath);
+        setStatus("新增 sub node 完成");
+      } catch (error) {
+        setStatus("新增 sub node 失敗: " + (error && error.message ? error.message : error), true);
+      } finally {
+        setControlsDisabled(false);
+      }
+    }
+
+    async function deleteSelectedNode() {
+      let path = normalizePath(selectedPath);
+      let parentPath = getParentPath(path);
+
+      if (!window.confirm(path ? "確認刪除節點：" + path + "？" : "確認刪除目前節點？")) {
+        setStatus("已取消刪除");
+        return;
+      }
+
+      try {
+        setControlsDisabled(true);
+        setStatus("刪除節點中...");
+
+        if (currentNodeType !== "leaf" && currentNodeType !== "object") {
+          throw new Error("目前節點不可刪除");
+        }
+
+        if (!path) {
+          throw new Error("不能刪除資料庫 root 節點");
+        }
+
+        await set(getDatabaseRef(path), null);
+        setSelectedPath(parentPath);
+        await loadTree();
+        await loadValue(parentPath);
+        setStatus("刪除節點完成");
+      } catch (error) {
+        setStatus("刪除節點失敗: " + (error && error.message ? error.message : error), true);
+      } finally {
+        setControlsDisabled(false);
+      }
+    }
+
+    function handleTextareaInput() {
+    }
+
+    async function main() {
+      if (!localStorage.FIREBASE_API_KEY || !localStorage.FIREBASE_DB_URL || !localStorage.FIREBASE_EMAIL || !localStorage.FIREBASE_PASSWORD) {
+        setStatus("缺少 Firebase 設定。先開 init.html 填入 localStorage 設定。", true);
+        setControlsDisabled(true);
+        return;
+      }
+
+      try {
+        setStatus("登入 Firebase...");
+
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        database = getDatabase(app);
+
+        await signInWithEmailAndPassword(auth, localStorage.FIREBASE_EMAIL, localStorage.FIREBASE_PASSWORD);
+
+        isReady = true;
+        setSelectedPath(localStorage.FIREBASE_TEXTAREA_EDITOR_PATH || "");
+        setModePanel("empty");
+        setControlsDisabled(false);
+        setStatus("已連線，可以開始讀寫資料");
+        await loadTree();
+
+        if (selectedPath) {
+          await loadValue(selectedPath);
+        }
+      } catch (error) {
+        setStatus("初始化失敗: " + (error && error.message ? error.message : error), true);
+        setControlsDisabled(true);
+      }
+    }
+
+    saveBtnElement.addEventListener("click", function () {
+      if (!isReady) {
+        setStatus("Firebase 尚未完成初始化", true);
+        return;
+      }
+
+      saveValue();
+    });
+
+    clearBtnElement.addEventListener("click", function () {
+      if (!isReady) {
+        setStatus("Firebase 尚未完成初始化", true);
+        return;
+      }
+
+      deleteSelectedNode();
+    });
+    addChildBtnElement.addEventListener("click", function () {
+      if (!isReady) {
+        setStatus("Firebase 尚未完成初始化", true);
+        return;
+      }
+
+      addChildNode();
+    });
+    deleteNodeBtnElement.addEventListener("click", function () {
+      if (!isReady) {
+        setStatus("Firebase 尚未完成初始化", true);
+        return;
+      }
+
+      deleteSelectedNode();
+    });
+    valueTextareaElement.addEventListener("input", handleTextareaInput);
+    main();
+  </script>
+</body>
+
+</html>
