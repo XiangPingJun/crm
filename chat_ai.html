@@ -52,7 +52,7 @@
     let chatItems = [];
     let currentChatName = "";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
+    let DEFAULT_ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
     let MERGE_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview";
 
     function setStatus(text) {
@@ -295,6 +295,18 @@
       };
     }
 
+    async function readAskOpenRouterModel() {
+      let chatAiModelRef = ref(database, "chat_ai_model");
+      let snapshot = await get(chatAiModelRef);
+
+      if (!snapshot.exists()) {
+        return DEFAULT_ASK_OPENROUTER_MODEL;
+      }
+
+      let model = String(snapshot.val() || "").trim();
+      return model || DEFAULT_ASK_OPENROUTER_MODEL;
+    }
+
     function buildOpenRouterInput(chatName, aboutMe, profile, chats, prompt) {
       return [
         "請根據以下完整資訊回答。使用繁體中文。",
@@ -401,7 +413,12 @@
         setControlsDisabled(true);
         setStatus("讀取資料中...");
 
-        let chatContext = await readChatContext(selectedChatName);
+        let results = await Promise.all([
+          readChatContext(selectedChatName),
+          readAskOpenRouterModel(),
+        ]);
+        let chatContext = results[0];
+        let askOpenRouterModel = results[1];
         let promptText = buildOpenRouterInput(
           selectedChatName,
           localStorage.ABOUT_ME || "",
@@ -411,7 +428,7 @@
         );
 
         setStatus("送出 OpenRouter...");
-        let answer = await requestOpenRouter(promptText, ASK_OPENROUTER_MODEL, "ask_ai");
+        let answer = await requestOpenRouter(promptText, askOpenRouterModel, "ask_ai");
         contentElement.textContent = answer;
       } catch (error) {
         setStatus("失敗: " + (error && error.message ? error.message : error));
