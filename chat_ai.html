@@ -15,30 +15,6 @@
     textarea {
       width: 100%;
     }
-
-    #memeGrid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .meme-card {
-      display: block;
-    }
-
-    .meme-card img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      object-fit: cover;
-    }
-
-    @media (max-width: 720px) {
-      #memeGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
   </style>
 </head>
 
@@ -49,7 +25,6 @@
   <label><input type="radio" name="mode" value="profile">Profile</label>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
-  <div id="memeGrid"></div>
   <div></div>
 
   <script type="module">
@@ -70,20 +45,17 @@
     let auth = getAuth(app);
     let database = getDatabase(app);
     let releaseChatAiListener = null;
-    let releaseChatAiMemeListener = null;
     let profileLoadToken = 0;
     let modeRadioElements = document.querySelectorAll('input[name="mode"]');
     let promptElement = document.querySelector("#prompt");
     let chatSelectElement = document.querySelector("#chatSelect");
     let submitBtnElement = document.querySelector("#submitBtn");
     let contentElement = document.querySelector("#content");
-    let memeGridElement = document.querySelector("#memeGrid");
     let chatItems = [];
     let aliasMap = {};
     let currentChatName = "";
     let currentProfileText = "";
     let currentChatAiText = "";
-    let currentChatMemes = [];
     let currentMode = "chat";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let ASK_OPENROUTER_MODEL = "openai/gpt-5.4";
@@ -310,58 +282,7 @@
       }).filter(Boolean).join("\n");
     }
 
-    function normalizeMemeItems(items) {
-      if (!Array.isArray(items)) {
-        return [];
-      }
-
-      return items.map(function (item) {
-        if (!item || typeof item !== "object") {
-          return null;
-        }
-
-        let imageUrl = item.imageUrl ? String(item.imageUrl).trim() : "";
-        if (!imageUrl) {
-          return null;
-        }
-
-        return {
-          id: item.id ? String(item.id).trim() : "",
-          title: item.title ? String(item.title).trim() : "",
-          query: item.query ? String(item.query).trim() : "",
-          imageUrl: imageUrl,
-          previewUrl: item.previewUrl ? String(item.previewUrl).trim() : imageUrl,
-          pageUrl: item.pageUrl ? String(item.pageUrl).trim() : imageUrl,
-        };
-      }).filter(Boolean);
-    }
-
-    function renderMemes(memeItems) {
-      let normalizedMemes = normalizeMemeItems(memeItems);
-
-      memeGridElement.replaceChildren();
-
-      if (!normalizedMemes.length || currentMode !== "chat") {
-        return;
-      }
-
-      for (let i = 0; i < normalizedMemes.length; i++) {
-        let memeItem = normalizedMemes[i];
-        let card = document.createElement("div");
-        let image = document.createElement("img");
-
-        card.className = "meme-card";
-
-        image.src = memeItem.previewUrl || memeItem.imageUrl;
-        image.alt = memeItem.title || memeItem.query || "meme";
-        image.loading = "lazy";
-
-        card.appendChild(image);
-        memeGridElement.appendChild(card);
-      }
-    }
-
-    function renderContent(content, memeItems) {
+    function renderContent(content) {
       let normalizedContent = String(content || "目前 chat_ai 沒有內容");
       let fullText = normalizedContent;
       let fragment = document.createDocumentFragment();
@@ -392,12 +313,10 @@
       }
 
       contentElement.replaceChildren(fragment);
-      renderMemes(memeItems);
     }
 
     function renderEmpty(message) {
       contentElement.textContent = message;
-      renderMemes([]);
     }
 
     function buildContextContent(mode, profileText, chatAiText) {
@@ -424,10 +343,7 @@
         return;
       }
 
-      renderContent(
-        buildContextContent(currentMode, currentProfileText, currentChatAiText),
-        currentMode === "chat" ? currentChatMemes : []
-      );
+      renderContent(buildContextContent(currentMode, currentProfileText, currentChatAiText));
     }
 
     async function readChatProfile(chatName) {
@@ -486,14 +402,8 @@
         releaseChatAiListener = null;
       }
 
-      if (releaseChatAiMemeListener) {
-        releaseChatAiMemeListener();
-        releaseChatAiMemeListener = null;
-      }
-
       if (!chatName) {
         currentChatAiText = "";
-        currentChatMemes = [];
         renderEmpty("等待 Firebase 更新...");
         return;
       }
@@ -501,10 +411,8 @@
       let primaryChatName = resolvePrimaryChatName(chatName);
       let chatKey = escapeFirebaseKey(primaryChatName);
       let chatAiRef = ref(database, "chat_ai/" + chatKey);
-      let chatAiMemesRef = ref(database, "chat_ai_memes/" + chatKey);
 
       currentChatAiText = "載入 chat_ai 中...";
-      currentChatMemes = [];
       renderCurrentContext(primaryChatName);
 
       releaseChatAiListener = onValue(chatAiRef, function (snapshot) {
@@ -512,14 +420,6 @@
         renderCurrentContext(primaryChatName);
       }, function (error) {
         currentChatAiText = error.message || "chat_ai 監聽失敗";
-        renderCurrentContext(primaryChatName);
-      });
-
-      releaseChatAiMemeListener = onValue(chatAiMemesRef, function (snapshot) {
-        currentChatMemes = normalizeMemeItems(snapshot.val());
-        renderCurrentContext(primaryChatName);
-      }, function () {
-        currentChatMemes = [];
         renderCurrentContext(primaryChatName);
       });
     }
