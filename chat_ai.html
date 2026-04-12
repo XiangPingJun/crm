@@ -19,7 +19,7 @@
 </head>
 
 <body>
-  <textarea id="prompt" rows="2"></textarea>
+  <textarea id="prompt" rows="3"></textarea>
   <select id="chatSelect"></select>
   <label><input type="radio" name="mode" value="chat" checked>Chat</label>
   <label><input type="radio" name="mode" value="profile">Profile</label>
@@ -59,7 +59,7 @@
     let currentMode = "chat";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let DEFAULT_ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
-    let MERGE_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview";
+    let MERGE_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
 
     function setStatus(text) {
       contentElement.textContent = text;
@@ -633,6 +633,7 @@
 
         setStatus("送出 OpenRouter...");
         let answer = await requestOpenRouter(promptText, askOpenRouterModel, "ask_ai");
+        promptElement.value = "";
         renderContent(answer);
       } catch (error) {
         setStatus("失敗: " + (error && error.message ? error.message : error));
@@ -672,6 +673,7 @@
 
         setStatus("回存 profile 並標記待刪除...");
         await saveMergedProfile(selectedChatName, mergedProfile);
+        promptElement.value = "";
         currentProfileText = mergedProfile;
         renderCurrentContext(selectedChatName);
       } catch (error) {
