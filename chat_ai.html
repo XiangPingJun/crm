@@ -58,8 +58,8 @@
     let currentChatAiText = "";
     let currentMode = "chat";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let DEFAULT_ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
-    let MERGE_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
+    let DEFAULT_ASK_OPENROUTER_MODEL = "openai/gpt-5.4";
+    let MERGE_OPENROUTER_MODEL = "openai/gpt-5.4";
 
     function setStatus(text) {
       contentElement.textContent = text;
@@ -529,6 +529,9 @@
         "## 🤲 潛在需求與送禮清單",
         "* (請條列從對話中發現的對方痛點、願望清單，或是未來你可以主動提供的價值、協助與適合送的禮物)",
         "",
+        "## 💡 未聊的新話題",
+        "* (請條列還未聊過、適合下次開啟的新話題)",
+        "",
         "## 🧠 長期記憶",
         "* (請條列更新後的核心特徵與近況)",
         "",
@@ -541,9 +544,6 @@
         "",
         "## 🎁 歷史行動與送禮紀錄",
         "* (請條列過去雙方禮尚往來或互相幫忙的紀錄)",
-        "",
-        "## 💡 未聊的新話題 (topic_ids)",
-        "* (請條列還未聊過、適合下次開啟的新話題)"
       ].join("\n");
     }
 
