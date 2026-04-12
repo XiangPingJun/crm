@@ -599,9 +599,9 @@
         let value = valueTextareaElement.value;
 
         await set(getDatabaseRef(path), value);
-        setStatus("儲存完成");
         await loadTree();
         await loadValue(path);
+        setStatus("儲存完成");
       } catch (error) {
         setStatus("儲存失敗: " + (error && error.message ? error.message : error), true);
       } finally {

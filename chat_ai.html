@@ -58,7 +58,7 @@
     let currentChatAiText = "";
     let currentMode = "chat";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let DEFAULT_ASK_OPENROUTER_MODEL = "openai/gpt-5.4";
+    let ASK_OPENROUTER_MODEL = "openai/gpt-5.4";
     let MERGE_OPENROUTER_MODEL = "openai/gpt-5.4";
 
     function setStatus(text) {
@@ -437,18 +437,6 @@
       };
     }
 
-    async function readAskOpenRouterModel() {
-      let chatAiModelRef = ref(database, "chat_ai_model");
-      let snapshot = await get(chatAiModelRef);
-
-      if (!snapshot.exists()) {
-        return DEFAULT_ASK_OPENROUTER_MODEL;
-      }
-
-      let model = String(snapshot.val() || "").trim();
-      return model || DEFAULT_ASK_OPENROUTER_MODEL;
-    }
-
     async function readAboutMe() {
       let aboutMeRef = ref(database, "about_me");
       let snapshot = await get(aboutMeRef);
@@ -644,12 +632,10 @@
 
         let results = await Promise.all([
           readChatContext(selectedChatName),
-          readAskOpenRouterModel(),
           readAboutMe(),
         ]);
         let chatContext = results[0];
-        let askOpenRouterModel = results[1];
-        let aboutMe = results[2];
+        let aboutMe = results[1];
         let promptPayload = buildAskOpenRouterMessages(
           aboutMe,
           chatContext.profile,
@@ -661,7 +647,7 @@
         let answer = await requestOpenRouter(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          askOpenRouterModel,
+          ASK_OPENROUTER_MODEL,
           "ask_ai"
         );
         promptElement.value = "";
