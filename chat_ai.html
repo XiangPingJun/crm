@@ -460,15 +460,12 @@
       return String(snapshot.val() || "").trim();
     }
 
-    function buildOpenRouterInput(chatName, aboutMe, profile, chats, prompt) {
+    function buildOpenRouterInput(aboutMe, profile, chats, prompt) {
       return [
         "請根據以下完整資訊回答。使用繁體中文。",
         "",
         "我的背景:",
         aboutMe || "",
-        "",
-        "目前對話:",
-        chatName || "",
         "",
         "對象 profile:",
         buildProfileText(profile, "") || "",
@@ -634,7 +631,6 @@
         let askOpenRouterModel = results[1];
         let aboutMe = results[2];
         let promptText = buildOpenRouterInput(
-          selectedChatName,
           aboutMe,
           chatContext.profile,
           chatContext.chats,
