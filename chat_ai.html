@@ -460,98 +460,109 @@
       return String(snapshot.val() || "").trim();
     }
 
-    function buildOpenRouterInput(aboutMe, profile, chats, prompt) {
-      return [
-        "請根據以下完整資訊回答。使用繁體中文。",
-        "",
-        "我的背景:",
-        aboutMe || "",
-        "",
-        "對象 profile:",
-        buildProfileText(profile, "") || "",
-        "",
-        "聊天紀錄:",
-        chats || "",
-        "",
-        "我的提問:",
-        prompt || "",
-      ].join("\n");
+    function buildAskOpenRouterMessages(aboutMe, profile, chats, prompt) {
+      return {
+        systemPrompt: [
+          "你是 Social CRM 對話助理。",
+          "請只根據提供的背景、對象 profile 與聊天紀錄回答。",
+          "使用繁體中文，回答要直接、具體。",
+        ].join("\n"),
+        userPrompt: [
+          "我的背景:",
+          aboutMe || "",
+          "",
+          "對象 profile:",
+          buildProfileText(profile, "") || "",
+          "",
+          "聊天紀錄:",
+          chats || "",
+          "",
+          "我的提問:",
+          prompt || "",
+        ].join("\n"),
+      };
     }
 
-    function buildMergePrompt(aboutMe, profile, chats, prompt) {
-      return [
-        "# Role & Objective",
-        "你是一個專業的 Social CRM 記憶管理員兼人際關係戰略分析師。你的任務是閱讀使用者與聯絡人的「最新對話紀錄」，精準地將該聯絡人進行「3+1 人物歸類」，評估其「社交溫度（回覆熱度）」，並將重要資訊高密度地萃取、更新至該聯絡人的「現有長期記憶檔案」中。",
-        "",
-        "# 主體辨識規則",
-        "1. 你要整理的是『對象』的 profile，不是『我』的 profile。",
-        "2. 下方 <about_me> 是『我』的背景資料，只能用來辨識對話中的主客體，絕對不能寫進對象 profile。",
-        "3. 若對話內容提到的是我自己的背景、經歷、偏好、需求、計畫、情緒、價值觀，全部排除，不得整理進對象 profile。",
-        "4. 只有明確屬於對象的資訊，才可以保留在輸出中；主體不明時寧可略過，不要誤收錄。",
-        "",
-        "# The 3+1 Personas (人物分類定義)",
-        "請根據對話所展現的互動模式，從以下分類中挑選最合適的一項：",
-        "1. 🌟 戰略節點 (Strategic Nodes)：擁有高社交資本（如業務、公關、活躍群體）。話題常涉及人脈引薦。價值：擴展網路與尋找潛在伴侶的泉源。",
-        "2. 🧠 智囊同儕 (Intellectual Peers)：業界前輩、強者或同事。交流內容高度邏輯化，專注專業知識、投資或未來趨勢。價值：維持事業競爭力。",
-        "3. ☕ 維繫型關係 (Low-Maintenance Bonds)：包含情緒避風港、特定興趣同好、生命見證人、遠距離或內向朋友。無功利目的，對話包容度高。價值：提供情緒緩衝與陪伴。",
-        "4. 💖 核心漏斗 (Romantic Pipeline)：明顯為潛在伴侶對象。對話包含高度好感試探、約會安排或深度價值觀交流。",
-        "",
-        "# Rules & Logic",
-        "1. 唯一歸類：必須挑選「一個」最符合的主類別。若資訊極度缺乏，請標記為「⏳ 觀察中 (Pending)」。",
-        "2. 動態萃取深度：",
-        "   - 針對 🌟、🧠、💖：請全面萃取其喜好、人際網路、價值觀、新話題，並敏銳捕捉其「潛在需求與願望」。",
-        "   - 針對 ☕ (維繫型關係)：以保留最基本的「主要特徵標籤」為主，並【極度嚴格】地捕捉並記錄「絕對不能碰的地雷」，忽略其餘無關緊要的瑣碎細節。",
-        "3. 矛盾去重與覆蓋 (Overwrite)：人的喜好與狀態會改變。如果最新對話出現與舊記憶衝突的資訊（如：以前愛喝咖啡，現在戒了），請直接「覆蓋」舊資訊，保留最新狀態。絕不可並列矛盾資訊。",
-        "4. 話題剔除機制 (Topic Deletion)：請交叉比對「最新對話紀錄」與現有的「💡 未聊的新話題」。如果現有話題已被聊過，請務必將該話題從清單中刪除。",
-        "5. 情感熱度判斷 (Text-Only Engagement)：忽略時間，僅憑文字互動評估。🟢 綠燈 (主動反問/延伸話題)；🟡 黃燈 (禮貌敷衍/句號型回覆)；🔴 紅燈 (軟性阻斷/極端單字敷衍)。",
-        "6. 觀感推測 (Perception Inference)：從對方的語氣、主動性與依賴感中，推測對方將使用者定位為什麼角色。",
-        "7. 絕對格式要求：嚴格依照下方 Markdown 格式輸出，使用 Emoji 作為視覺錨點。不要包含任何問候語或解釋文字。若某分類無資料，保留標題並留白。",
-        "",
-        "# Input Data",
-        "<about_me>",
-        aboutMe || "",
-        "</about_me>",
-        "",
-        "<current_profile>",
-        profile,
-        prompt,
-        "</current_profile>",
-        "",
-        "<recent_conversations>",
-        chats,
-        "</recent_conversations>",
-        "",
-        "# Output Format (Strict)",
-        "## 🏷️ 人物歸類",
-        "* **標籤**: (🌟 戰略節點 | 🧠 智囊同儕 | ☕ 維繫型關係 | 💖 核心漏斗 | ⏳ 觀察中)",
-        "* **推論理由**: (請用 50 字內說明歸類原因。若為維繫型關係，請加註主要標籤，如：打遊戲、南部朋友)",
-        "",
-        "## 🌡️ 社交溫度計",
-        "* **燈號**: (🟢 綠燈 | 🟡 黃燈 | 🔴 紅燈)",
-        "",
-        "## 🎭 對方對我的觀感推測",
-        "* **定位推測**: (例如：可依賴的專家、有趣的玩伴、單向傾聽的樹洞、潛在發展對象)",
-        "* **判斷依據**: (簡述從哪些對話細節或語氣得出此推測)",
-        "",
-        "## 🤲 潛在需求與送禮清單",
-        "* (請條列從對話中發現的對方痛點、願望清單，或是未來你可以主動提供的價值、協助與適合送的禮物)",
-        "",
-        "## 💡 未聊的新話題",
-        "* (請條列還未聊過、適合下次開啟的新話題)",
-        "",
-        "## 🧠 長期記憶",
-        "* (請條列更新後的核心特徵與近況)",
-        "",
-        "## 🎯 偏好與地雷",
-        "* **喜歡**: (請條列更新後的喜好)",
-        "* **地雷/討厭**: (請條列更新後的地雷，☕ 維繫型關係請特別著重此項)",
-        "",
-        "## 🤝 人際網路",
-        "* **(人名)**: (關係描述，若是戰略節點，請特別記錄引薦過誰)",
-        "",
-        "## 🎁 歷史行動與送禮紀錄",
-        "* (請條列過去雙方禮尚往來或互相幫忙的紀錄)",
-      ].join("\n");
+    function buildMergeMessages(aboutMe, profile, chats, prompt) {
+      return {
+        systemPrompt: [
+          "# Role & Objective",
+          "你是一個專業的 Social CRM 記憶管理員兼人際關係戰略分析師。你的任務是閱讀使用者與聯絡人的「最新對話紀錄」，精準地將該聯絡人進行「3+1 人物歸類」，評估其「社交溫度（回覆熱度）」，並將重要資訊高密度地萃取、更新至該聯絡人的「現有長期記憶檔案」中。",
+          "",
+          "# 主體辨識規則",
+          "1. 你要整理的是『對象』的 profile，不是『我』的 profile。",
+          "2. 下方 <about_me> 是『我』的背景資料，只能用來辨識對話中的主客體，絕對不能寫進對象 profile。",
+          "3. 若對話內容提到的是我自己的背景、經歷、偏好、需求、計畫、情緒、價值觀，全部排除，不得整理進對象 profile。",
+          "4. 只有明確屬於對象的資訊，才可以保留在輸出中；主體不明時寧可略過，不要誤收錄。",
+          "",
+          "# The 3+1 Personas (人物分類定義)",
+          "請根據對話所展現的互動模式，從以下分類中挑選最合適的一項：",
+          "1. 🌟 戰略節點 (Strategic Nodes)：擁有高社交資本（如業務、公關、活躍群體）。話題常涉及人脈引薦。價值：擴展網路與尋找潛在伴侶的泉源。",
+          "2. 🧠 智囊同儕 (Intellectual Peers)：業界前輩、強者或同事。交流內容高度邏輯化，專注專業知識、投資或未來趨勢。價值：維持事業競爭力。",
+          "3. ☕ 維繫型關係 (Low-Maintenance Bonds)：包含情緒避風港、特定興趣同好、生命見證人、遠距離或內向朋友。無功利目的，對話包容度高。價值：提供情緒緩衝與陪伴。",
+          "4. 💖 核心漏斗 (Romantic Pipeline)：明顯為潛在伴侶對象。對話包含高度好感試探、約會安排或深度價值觀交流。",
+          "",
+          "# Rules & Logic",
+          "1. 唯一歸類：必須挑選「一個」最符合的主類別。若資訊極度缺乏，請標記為「⏳ 觀察中 (Pending)」。",
+          "2. 動態萃取深度：",
+          "   - 針對 🌟、🧠、💖：請全面萃取其喜好、人際網路、價值觀、新話題，並敏銳捕捉其「潛在需求與願望」。",
+          "   - 針對 ☕ (維繫型關係)：以保留最基本的「主要特徵標籤」為主，並【極度嚴格】地捕捉並記錄「絕對不能碰的地雷」，忽略其餘無關緊要的瑣碎細節。",
+          "3. 矛盾去重與覆蓋 (Overwrite)：人的喜好與狀態會改變。如果最新對話出現與舊記憶衝突的資訊（如：以前愛喝咖啡，現在戒了），請直接「覆蓋」舊資訊，保留最新狀態。絕不可並列矛盾資訊。",
+          "4. 話題剔除機制 (Topic Deletion)：請交叉比對「最新對話紀錄」與現有的「💡 未聊的新話題」。如果現有話題已被聊過，請務必將該話題從清單中刪除。",
+          "5. 情感熱度判斷 (Text-Only Engagement)：忽略時間，僅憑文字互動評估。🟢 綠燈 (主動反問/延伸話題)；🟡 黃燈 (禮貌敷衍/句號型回覆)；🔴 紅燈 (軟性阻斷/極端單字敷衍)。",
+          "6. 觀感推測 (Perception Inference)：從對方的語氣、主動性與依賴感中，推測對方將使用者定位為什麼角色。",
+          "7. 絕對格式要求：嚴格依照下方 Markdown 格式輸出，使用 Emoji 作為視覺錨點。不要包含任何問候語或解釋文字。若某分類無資料，保留標題並留白。",
+          "",
+          "# Output Format (Strict)",
+          "## 🏷️ 人物歸類",
+          "* **標籤**: (🌟 戰略節點 | 🧠 智囊同儕 | ☕ 維繫型關係 | 💖 核心漏斗 | ⏳ 觀察中)",
+          "* **推論理由**: (請用 50 字內說明歸類原因。若為維繫型關係，請加註主要標籤，如：打遊戲、南部朋友)",
+          "",
+          "## 🌡️ 社交溫度計",
+          "* **燈號**: (🟢 綠燈 | 🟡 黃燈 | 🔴 紅燈)",
+          "",
+          "## 🎭 對方對我的觀感推測",
+          "* **定位推測**: (例如：可依賴的專家、有趣的玩伴、單向傾聽的樹洞、潛在發展對象)",
+          "* **判斷依據**: (簡述從哪些對話細節或語氣得出此推測)",
+          "",
+          "## 🤲 潛在需求與送禮清單",
+          "* (請條列從對話中發現的對方痛點、願望清單，或是未來你可以主動提供的價值、協助與適合送的禮物)",
+          "",
+          "## 💡 未聊的新話題",
+          "* (請條列還未聊過、適合下次開啟的新話題)",
+          "",
+          "## 🧠 長期記憶",
+          "* (請條列更新後的核心特徵與近況)",
+          "",
+          "## 🎯 偏好與地雷",
+          "* **喜歡**: (請條列更新後的喜好)",
+          "* **地雷/討厭**: (請條列更新後的地雷，☕ 維繫型關係請特別著重此項)",
+          "",
+          "## 🤝 人際網路",
+          "* **(人名)**: (關係描述，若是戰略節點，請特別記錄引薦過誰)",
+          "",
+          "## 🎁 歷史行動與送禮紀錄",
+          "* (請條列過去雙方禮尚往來或互相幫忙的紀錄)",
+        ].join("\n"),
+        userPrompt: [
+          "# Input Data",
+          "<about_me>",
+          aboutMe || "",
+          "</about_me>",
+          "",
+          "<current_profile>",
+          buildProfileText(profile, "") || "",
+          "</current_profile>",
+          "",
+          "<additional_input>",
+          prompt || "",
+          "</additional_input>",
+          "",
+          "<recent_conversations>",
+          chats || "",
+          "</recent_conversations>",
+        ].join("\n"),
+      };
     }
 
     async function saveMergedProfile(chatName, profileText) {
@@ -568,7 +579,21 @@
       ]);
     }
 
-    async function requestOpenRouter(promptText, model, title) {
+    async function requestOpenRouter(systemPrompt, userPrompt, model, title) {
+      let messages = [];
+
+      if (systemPrompt) {
+        messages.push({
+          role: "system",
+          content: systemPrompt,
+        });
+      }
+
+      messages.push({
+        role: "user",
+        content: userPrompt,
+      });
+
       let response = await fetch(OPENROUTER_API_URL, {
         method: "POST",
         headers: {
@@ -579,12 +604,7 @@
         },
         body: JSON.stringify({
           model: model,
-          messages: [
-            {
-              role: "user",
-              content: promptText,
-            },
-          ],
+          messages: messages,
         }),
       });
 
@@ -630,7 +650,7 @@
         let chatContext = results[0];
         let askOpenRouterModel = results[1];
         let aboutMe = results[2];
-        let promptText = buildOpenRouterInput(
+        let promptPayload = buildAskOpenRouterMessages(
           aboutMe,
           chatContext.profile,
           chatContext.chats,
@@ -638,7 +658,12 @@
         );
 
         setStatus("送出 OpenRouter...");
-        let answer = await requestOpenRouter(promptText, askOpenRouterModel, "ask_ai");
+        let answer = await requestOpenRouter(
+          promptPayload.systemPrompt,
+          promptPayload.userPrompt,
+          askOpenRouterModel,
+          "ask_ai"
+        );
         promptElement.value = "";
         renderContent(answer);
       } catch (error) {
@@ -673,7 +698,7 @@
         ]);
         let chatContext = results[0];
         let aboutMe = results[1];
-        let promptText = buildMergePrompt(
+        let promptPayload = buildMergeMessages(
           aboutMe,
           chatContext.profile,
           chatContext.chats,
@@ -681,7 +706,12 @@
         );
 
         setStatus("送出 OpenRouter 合併 profile...");
-        let mergedProfile = await requestOpenRouter(promptText, MERGE_OPENROUTER_MODEL, "merge_ai");
+        let mergedProfile = await requestOpenRouter(
+          promptPayload.systemPrompt,
+          promptPayload.userPrompt,
+          MERGE_OPENROUTER_MODEL,
+          "merge_ai"
+        );
 
         setStatus("回存 profile 並標記待刪除...");
         await saveMergedProfile(selectedChatName, mergedProfile);
