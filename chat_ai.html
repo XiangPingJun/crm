@@ -18,29 +18,26 @@
 
     #memeGrid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
       margin-top: 16px;
     }
 
     .meme-card {
       display: block;
-      padding: 8px;
-      border: 1px solid #5a5a5a;
-      text-decoration: none;
     }
 
     .meme-card img {
       display: block;
       width: 100%;
-      height: auto;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
     }
 
-    .meme-meta {
-      margin-top: 8px;
-      font-size: 0.9rem;
-      white-space: normal;
-      word-break: break-word;
+    @media (max-width: 720px) {
+      #memeGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
@@ -350,33 +347,16 @@
 
       for (let i = 0; i < normalizedMemes.length; i++) {
         let memeItem = normalizedMemes[i];
-        let card = document.createElement("a");
+        let card = document.createElement("div");
         let image = document.createElement("img");
-        let meta = document.createElement("div");
-        let labelParts = [];
 
         card.className = "meme-card";
-        card.href = memeItem.pageUrl || memeItem.imageUrl;
-        card.target = "_blank";
-        card.rel = "noreferrer noopener";
 
         image.src = memeItem.previewUrl || memeItem.imageUrl;
         image.alt = memeItem.title || memeItem.query || "meme";
         image.loading = "lazy";
 
-        if (memeItem.query) {
-          labelParts.push("搜尋: " + memeItem.query);
-        }
-
-        if (memeItem.title) {
-          labelParts.push(memeItem.title);
-        }
-
-        meta.className = "meme-meta";
-        meta.textContent = labelParts.join("\n");
-
         card.appendChild(image);
-        card.appendChild(meta);
         memeGridElement.appendChild(card);
       }
     }
