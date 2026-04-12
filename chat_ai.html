@@ -50,6 +50,7 @@
     let mergeBtnElement = document.querySelector("#mergeBtn");
     let contentElement = document.querySelector("#content");
     let chatItems = [];
+    let aliasMap = {};
     let currentChatName = "";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let DEFAULT_ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
@@ -72,6 +73,40 @@
       return String(value || "").replace(/%([0-9A-F]{2})/g, function (_, hex) {
         return String.fromCharCode(parseInt(hex, 16));
       });
+    }
+
+    function normalizeAliasMap(rawAliases) {
+      if (!rawAliases || typeof rawAliases !== "object") {
+        return {};
+      }
+
+      let keys = Object.keys(rawAliases);
+      let normalizedAliases = {};
+
+      for (let i = 0; i < keys.length; i++) {
+        let aliasName = decodeFirebaseKey(keys[i]).trim();
+        let primaryName = rawAliases[keys[i]] !== undefined && rawAliases[keys[i]] !== null
+          ? String(rawAliases[keys[i]]).trim()
+          : "";
+
+        if (!aliasName || !primaryName) {
+          continue;
+        }
+
+        normalizedAliases[aliasName] = primaryName;
+      }
+
+      return normalizedAliases;
+    }
+
+    function resolvePrimaryChatName(chatName) {
+      let normalizedChatName = chatName ? String(chatName).trim() : "";
+      if (!normalizedChatName) {
+        return "";
+      }
+
+      let primaryChatName = aliasMap[normalizedChatName] ? String(aliasMap[normalizedChatName]).trim() : "";
+      return primaryChatName || normalizedChatName;
     }
 
     function renderChatOptions() {
@@ -273,18 +308,20 @@
         return;
       }
 
-      let chatKey = escapeFirebaseKey(chatName);
+      let primaryChatName = resolvePrimaryChatName(chatName);
+      let chatKey = escapeFirebaseKey(primaryChatName);
       let chatAiRef = ref(database, "chat_ai/" + chatKey);
 
       releaseChatAiListener = onValue(chatAiRef, function (snapshot) {
-        renderContent(chatName, snapshot.val() || "目前 chat_ai 沒有內容");
+        renderContent(primaryChatName, snapshot.val() || "目前 chat_ai 沒有內容");
       }, function (error) {
         renderEmpty(error.message || "chat_ai 監聽失敗");
       });
     }
 
     async function readChatContext(chatName) {
-      let chatKey = escapeFirebaseKey(chatName);
+      let primaryChatName = resolvePrimaryChatName(chatName);
+      let chatKey = escapeFirebaseKey(primaryChatName);
       let profileRef = ref(database, "profile/" + chatKey);
       let chatsRef = ref(database, "chats/" + chatKey);
       let results = await Promise.all([get(profileRef), get(chatsRef)]);
@@ -349,13 +386,16 @@
     }
 
     async function saveMergedProfile(chatName, profileText) {
-      let chatKey = escapeFirebaseKey(chatName);
+      let primaryChatName = resolvePrimaryChatName(chatName);
+      let chatKey = escapeFirebaseKey(primaryChatName);
       let profileRef = ref(database, "profile/" + chatKey);
       let toBeDeletedRef = ref(database, "to_be_deleted/" + chatKey);
 
       await Promise.all([
         set(profileRef, profileText),
-        set(toBeDeletedRef, chatName),
+        set(toBeDeletedRef, {
+          chatName: primaryChatName,
+        }),
       ]);
     }
 
@@ -482,6 +522,11 @@
         setStatus("登入 Firebase");
         await signInWithEmailAndPassword(auth, firebaseEmail, firebasePassword);
         setStatus("");
+
+        let aliasesRef = ref(database, "aliases");
+        onValue(aliasesRef, function (snapshot) {
+          aliasMap = normalizeAliasMap(snapshot.val());
+        });
 
         let chatUpdatedRef = ref(database, "chat_updated");
         onValue(chatUpdatedRef, function (snapshot) {
