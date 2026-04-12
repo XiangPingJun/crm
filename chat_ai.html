@@ -481,10 +481,16 @@
       ].join("\n");
     }
 
-    function buildMergePrompt(profile, chats, prompt) {
+    function buildMergePrompt(aboutMe, profile, chats, prompt) {
       return [
         "# Role & Objective",
         "你是一個專業的 Social CRM 記憶管理員兼人際關係戰略分析師。你的任務是閱讀使用者與聯絡人的「最新對話紀錄」，精準地將該聯絡人進行「3+1 人物歸類」，評估其「社交溫度（回覆熱度）」，並將重要資訊高密度地萃取、更新至該聯絡人的「現有長期記憶檔案」中。",
+        "",
+        "# 主體辨識規則",
+        "1. 你要整理的是『對象』的 profile，不是『我』的 profile。",
+        "2. 下方 <about_me> 是『我』的背景資料，只能用來辨識對話中的主客體，絕對不能寫進對象 profile。",
+        "3. 若對話內容提到的是我自己的背景、經歷、偏好、需求、計畫、情緒、價值觀，全部排除，不得整理進對象 profile。",
+        "4. 只有明確屬於對象的資訊，才可以保留在輸出中；主體不明時寧可略過，不要誤收錄。",
         "",
         "# The 3+1 Personas (人物分類定義)",
         "請根據對話所展現的互動模式，從以下分類中挑選最合適的一項：",
@@ -505,6 +511,10 @@
         "7. 絕對格式要求：嚴格依照下方 Markdown 格式輸出，使用 Emoji 作為視覺錨點。不要包含任何問候語或解釋文字。若某分類無資料，保留標題並留白。",
         "",
         "# Input Data",
+        "<about_me>",
+        aboutMe || "",
+        "</about_me>",
+        "",
         "<current_profile>",
         profile,
         prompt,
@@ -661,8 +671,14 @@
         setControlsDisabled(true);
         setStatus("讀取 Firebase 資料中...");
 
-        let chatContext = await readChatContext(selectedChatName);
+        let results = await Promise.all([
+          readChatContext(selectedChatName),
+          readAboutMe(),
+        ]);
+        let chatContext = results[0];
+        let aboutMe = results[1];
         let promptText = buildMergePrompt(
+          aboutMe,
           chatContext.profile,
           chatContext.chats,
           mergeSourceText
