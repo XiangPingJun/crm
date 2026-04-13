@@ -100,6 +100,10 @@
       });
     }
 
+    function normalizePromptDisplayText(value) {
+      return String(value || "").replace(/妳/g, "你");
+    }
+
     function normalizeAliasMap(rawAliases) {
       if (!rawAliases || typeof rawAliases !== "object") {
         return {};
@@ -554,6 +558,14 @@
       };
     }
 
+    function normalizePromptTextarea() {
+      let normalizedValue = normalizePromptDisplayText(promptElement.value);
+
+      if (promptElement.value !== normalizedValue) {
+        promptElement.value = normalizedValue;
+      }
+    }
+
     async function saveMergedProfile(chatName, profileText) {
       let primaryChatName = resolvePrimaryChatName(chatName);
       let chatKey = escapeFirebaseKey(primaryChatName);
@@ -756,6 +768,10 @@
     chatSelectElement.addEventListener("change", function () {
       let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
       syncSelectedChat(selectedChatName);
+    });
+
+    promptElement.addEventListener("input", function () {
+      normalizePromptTextarea();
     });
 
     contentElement.addEventListener("click", async function (event) {
