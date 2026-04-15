@@ -58,8 +58,8 @@
     let currentChatAiText = "";
     let currentMode = "chat";
     let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let ASK_OPENROUTER_MODEL = "openai/gpt-5.4";
-    let MERGE_OPENROUTER_MODEL = "openai/gpt-5.4";
+    let ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
+    let MERGE_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
 
     function normalizeDisplayText(text) {
       return String(text || "").replace(/妳/g, "你");
