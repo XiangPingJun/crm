@@ -57,9 +57,9 @@
     let currentProfileText = "";
     let currentChatAiText = "";
     let currentMode = "chat";
-    let OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let ASK_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
-    let MERGE_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6";
+    let AI_API_URL = "https://api.deepinfra.com/v1/openai/chat/completions";
+    let ASK_AI_MODEL = "moonshotai/Kimi-K2.5";
+    let MERGE_AI_MODEL = "moonshotai/Kimi-K2.5";
 
     function normalizeDisplayText(text) {
       return String(text || "").replace(/妳/g, "你");
@@ -572,7 +572,7 @@
       ]);
     }
 
-    async function requestOpenRouter(systemPrompt, userPrompt, model, title) {
+    async function requestAI(systemPrompt, userPrompt, model) {
       let messages = [];
 
       if (systemPrompt) {
@@ -587,13 +587,11 @@
         content: userPrompt,
       });
 
-      let response = await fetch(OPENROUTER_API_URL, {
+      let response = await fetch(AI_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer " + localStorage.OPENROUTER_API_KEY,
-          "HTTP-Referer": window.location.origin,
-          "X-Title": title,
+          "Authorization": "Bearer " + localStorage.AI_API_KEY,
         },
         body: JSON.stringify({
           model: model,
@@ -612,7 +610,7 @@
       let content = extractOpenRouterText(message ? message.content : "");
 
       if (!content) {
-        throw new Error("OpenRouter 回傳內容為空");
+        throw new Error("AI API 回傳內容為空");
       }
 
       return content;
@@ -626,8 +624,8 @@
         return;
       }
 
-      if (!localStorage.OPENROUTER_API_KEY) {
-        setStatus("缺少 localStorage.OPENROUTER_API_KEY");
+      if (!localStorage.AI_API_KEY) {
+        setStatus("缺少 localStorage.AI_API_KEY");
         return;
       }
 
@@ -648,12 +646,11 @@
           promptElement.value || ""
         );
 
-        setStatus("送出 OpenRouter...");
-        let answer = await requestOpenRouter(
+        setStatus("送出 AI API...");
+        let answer = await requestAI(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          ASK_OPENROUTER_MODEL,
-          "ask_ai"
+          ASK_AI_MODEL
         );
         promptElement.value = "";
         renderContent(answer, []);
@@ -674,8 +671,8 @@
         return;
       }
 
-      if (!localStorage.OPENROUTER_API_KEY) {
-        setStatus("缺少 localStorage.OPENROUTER_API_KEY");
+      if (!localStorage.AI_API_KEY) {
+        setStatus("缺少 localStorage.AI_API_KEY");
         return;
       }
 
@@ -696,12 +693,11 @@
           mergeSourceText
         );
 
-        setStatus("送出 OpenRouter 合併 profile...");
-        let mergedProfile = await requestOpenRouter(
+        setStatus("送出 AI API 合併 profile...");
+        let mergedProfile = await requestAI(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          MERGE_OPENROUTER_MODEL,
-          "merge_ai"
+          MERGE_AI_MODEL
         );
 
         setStatus("回存 profile 並標記待刪除...");

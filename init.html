@@ -2,16 +2,20 @@
 <input type="text" id="FIREBASE_DB_URL" placeholder="FIREBASE_DB_URL">
 <input type="text" id="FIREBASE_EMAIL" placeholder="FIREBASE_EMAIL">
 <input type="text" id="FIREBASE_PASSWORD" placeholder="FIREBASE_PASSWORD">
-<input type="text" id="OPENROUTER_API_KEY" placeholder="OPENROUTER_API_KEY">
+<input type="text" id="AI_API_KEY" placeholder="AI_API_KEY">
 <button id="saveBtn">Save</button>
 
 <script>
   document.getElementById("saveBtn").addEventListener("click", function () {
-    localStorage.FIREBASE_API_KEY = document.getElementById("FIREBASE_API_KEY").value;
-    localStorage.FIREBASE_DB_URL = document.getElementById("FIREBASE_DB_URL").value;
-    localStorage.FIREBASE_EMAIL = document.getElementById("FIREBASE_EMAIL").value;
-    localStorage.FIREBASE_PASSWORD = document.getElementById("FIREBASE_PASSWORD").value;
-    localStorage.OPENROUTER_API_KEY = document.getElementById("OPENROUTER_API_KEY").value;
+    let fields = ["FIREBASE_API_KEY", "FIREBASE_DB_URL", "FIREBASE_EMAIL", "FIREBASE_PASSWORD", "AI_API_KEY"];
+
+    for (let i = 0; i < fields.length; i++) {
+      let value = document.getElementById(fields[i]).value;
+      if (value) {
+        localStorage[fields[i]] = value;
+      }
+    }
+
     alert("Configuration saved!");
   });
 </script>
