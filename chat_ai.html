@@ -21,8 +21,14 @@
 <body>
   <textarea id="prompt" rows="3"></textarea>
   <select id="chatSelect"></select>
-  <label><input type="radio" name="mode" value="chat" checked>Chat</label>
-  <label><input type="radio" name="mode" value="profile">Profile</label>
+  <select id="modeSelect">
+    <option value="chat">Chat</option>
+    <option value="profile">Profile</option>
+  </select>
+  <select id="providerSelect">
+    <option value="kimi">Kimi</option>
+    <option value="grok">Grok</option>
+  </select>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
   <div></div>
@@ -46,9 +52,10 @@
     let database = getDatabase(app);
     let releaseChatAiListener = null;
     let profileLoadToken = 0;
-    let modeRadioElements = document.querySelectorAll('input[name="mode"]');
     let promptElement = document.querySelector("#prompt");
     let chatSelectElement = document.querySelector("#chatSelect");
+    let modeSelectElement = document.querySelector("#modeSelect");
+    let providerSelectElement = document.querySelector("#providerSelect");
     let submitBtnElement = document.querySelector("#submitBtn");
     let contentElement = document.querySelector("#content");
     let chatItems = [];
@@ -57,9 +64,27 @@
     let currentProfileText = "";
     let currentChatAiText = "";
     let currentMode = "chat";
-    let AI_API_URL = "https://api.together.xyz/v1/chat/completions";
-    let ASK_AI_MODEL = "moonshotai/Kimi-K2.5";
-    let MERGE_AI_MODEL = "moonshotai/Kimi-K2.5";
+    let currentProvider = "kimi";
+    let AI_PROVIDERS = {
+      kimi: {
+        label: "Kimi",
+        apiUrl: "https://api.together.xyz/v1/chat/completions",
+        apiKey: function () {
+          return localStorage.AI_API_KEY || "";
+        },
+        askModel: "moonshotai/Kimi-K2.5",
+        mergeModel: "moonshotai/Kimi-K2.5",
+      },
+      grok: {
+        label: "Grok",
+        apiUrl: "https://openrouter.ai/api/v1/chat/completions",
+        apiKey: function () {
+          return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
+        },
+        askModel: "x-ai/grok-4.20",
+        mergeModel: "x-ai/grok-4.20",
+      },
+    };
 
     function normalizeDisplayText(text) {
       return String(text || "").replace(/妳/g, "你");
@@ -74,17 +99,14 @@
 
       submitBtnElement.disabled = nextDisabled;
       chatSelectElement.disabled = nextDisabled || !chatItems.length;
+      modeSelectElement.disabled = nextDisabled;
+      providerSelectElement.disabled = nextDisabled;
       promptElement.disabled = nextDisabled;
-
-      for (let i = 0; i < modeRadioElements.length; i++) {
-        modeRadioElements[i].disabled = nextDisabled;
-      }
     }
 
     function updateModeUI() {
-      for (let i = 0; i < modeRadioElements.length; i++) {
-        modeRadioElements[i].checked = modeRadioElements[i].value === currentMode;
-      }
+      modeSelectElement.value = currentMode;
+      providerSelectElement.value = currentProvider;
 
       submitBtnElement.textContent = currentMode === "profile" ? "合併" : "詢問";
       promptElement.placeholder = currentMode === "profile"
@@ -96,6 +118,16 @@
       currentMode = mode === "profile" ? "profile" : "chat";
       updateModeUI();
       renderCurrentContext(currentChatName);
+    }
+
+    function getCurrentAiProvider() {
+      let providerName = currentProvider && AI_PROVIDERS[currentProvider] ? currentProvider : "kimi";
+      return AI_PROVIDERS[providerName];
+    }
+
+    function setProvider(providerName) {
+      currentProvider = providerName && AI_PROVIDERS[providerName] ? providerName : "kimi";
+      updateModeUI();
     }
 
     function decodeFirebaseKey(value) {
@@ -573,6 +605,8 @@
     }
 
     async function requestAI(systemPrompt, userPrompt, model) {
+      let provider = getCurrentAiProvider();
+      let apiKey = provider.apiKey();
       let messages = [];
 
       if (systemPrompt) {
@@ -587,17 +621,23 @@
         content: userPrompt,
       });
 
-      let response = await fetch(AI_API_URL, {
+      let requestBody = {
+        model: model,
+        messages: messages,
+        max_tokens: 8192,
+      };
+
+      if (provider.apiUrl.indexOf("openrouter.ai") !== -1) {
+        requestBody.max_completion_tokens = 8192;
+      }
+
+      let response = await fetch(provider.apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer " + localStorage.AI_API_KEY,
+          "Authorization": "Bearer " + apiKey,
         },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          max_tokens: 8192,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       let data = await response.json();
@@ -619,14 +659,15 @@
 
     async function handleAsk() {
       let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
+      let provider = getCurrentAiProvider();
 
       if (!selectedChatName) {
         setStatus("目前沒有可送出的 chat");
         return;
       }
 
-      if (!localStorage.AI_API_KEY) {
-        setStatus("缺少 localStorage.AI_API_KEY");
+      if (!provider.apiKey()) {
+        setStatus("缺少 localStorage." + (currentProvider === "grok" ? "OPENROUTER_API_KEY" : "AI_API_KEY"));
         return;
       }
 
@@ -651,7 +692,7 @@
         let answer = await requestAI(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          ASK_AI_MODEL
+          provider.askModel
         );
         promptElement.value = "";
         renderContent(answer, []);
@@ -666,14 +707,15 @@
     async function handleMerge() {
       let selectedChatName = chatSelectElement.value ? String(chatSelectElement.value).trim() : "";
       let mergeSourceText = promptElement.value ? String(promptElement.value).trim() : "";
+      let provider = getCurrentAiProvider();
 
       if (!selectedChatName) {
         setStatus("目前沒有可合併的 chat");
         return;
       }
 
-      if (!localStorage.AI_API_KEY) {
-        setStatus("缺少 localStorage.AI_API_KEY");
+      if (!provider.apiKey()) {
+        setStatus("缺少 localStorage." + (currentProvider === "grok" ? "OPENROUTER_API_KEY" : "AI_API_KEY"));
         return;
       }
 
@@ -698,7 +740,7 @@
         let mergedProfile = await requestAI(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          MERGE_AI_MODEL
+          provider.mergeModel
         );
 
         setStatus("回存 profile 並標記待刪除...");
@@ -738,12 +780,15 @@
       }
     }
 
-    for (let i = 0; i < modeRadioElements.length; i++) {
-      modeRadioElements[i].addEventListener("change", function (event) {
-        let target = event.target;
-        setMode(target && target.value ? target.value : "chat");
-      });
-    }
+    modeSelectElement.addEventListener("change", function () {
+      let selectedMode = modeSelectElement.value ? String(modeSelectElement.value).trim() : "chat";
+      setMode(selectedMode);
+    });
+
+    providerSelectElement.addEventListener("change", function () {
+      let selectedProvider = providerSelectElement.value ? String(providerSelectElement.value).trim() : "kimi";
+      setProvider(selectedProvider);
+    });
 
     submitBtnElement.addEventListener("click", function () {
       if (currentMode === "profile") {

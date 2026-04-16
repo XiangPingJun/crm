@@ -3,11 +3,12 @@
 <input type="text" id="FIREBASE_EMAIL" placeholder="FIREBASE_EMAIL">
 <input type="text" id="FIREBASE_PASSWORD" placeholder="FIREBASE_PASSWORD">
 <input type="text" id="AI_API_KEY" placeholder="AI_API_KEY">
+<input type="text" id="OPENROUTER_API_KEY" placeholder="OPENROUTER_API_KEY">
 <button id="saveBtn">Save</button>
 
 <script>
   document.getElementById("saveBtn").addEventListener("click", function () {
-    let fields = ["FIREBASE_API_KEY", "FIREBASE_DB_URL", "FIREBASE_EMAIL", "FIREBASE_PASSWORD", "AI_API_KEY"];
+    let fields = ["FIREBASE_API_KEY", "FIREBASE_DB_URL", "FIREBASE_EMAIL", "FIREBASE_PASSWORD", "AI_API_KEY", "OPENROUTER_API_KEY"];
 
     for (let i = 0; i < fields.length; i++) {
       let value = document.getElementById(fields[i]).value;
