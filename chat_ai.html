@@ -72,8 +72,7 @@
         apiKey: function () {
           return localStorage.AI_API_KEY || "";
         },
-        askModel: "moonshotai/Kimi-K2.5",
-        mergeModel: "moonshotai/Kimi-K2.5",
+        model: "moonshotai/Kimi-K2.5",
       },
       grok: {
         label: "Grok",
@@ -81,8 +80,7 @@
         apiKey: function () {
           return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
         },
-        askModel: "x-ai/grok-4.20",
-        mergeModel: "x-ai/grok-4.20",
+        model: "x-ai/grok-4.20",
       },
     };
 
@@ -693,7 +691,7 @@
         let answer = await requestAI(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          provider.askModel
+          provider.model
         );
         promptElement.value = "";
         renderContent(answer, []);
@@ -741,7 +739,7 @@
         let mergedProfile = await requestAI(
           promptPayload.systemPrompt,
           promptPayload.userPrompt,
-          provider.mergeModel
+          provider.model
         );
 
         setStatus("回存 profile 並標記待刪除...");
