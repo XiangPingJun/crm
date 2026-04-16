@@ -624,11 +624,12 @@
       let requestBody = {
         model: model,
         messages: messages,
-        max_tokens: 8192,
       };
 
       if (provider.apiUrl.indexOf("openrouter.ai") !== -1) {
         requestBody.max_completion_tokens = 8192;
+      } else {
+        requestBody.max_tokens = 8192;
       }
 
       let response = await fetch(provider.apiUrl, {
