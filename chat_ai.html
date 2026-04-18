@@ -28,6 +28,7 @@
   <select id="providerSelect">
     <option value="kimi">Kimi</option>
     <option value="grok">Grok</option>
+    <option value="gemini">Gemini 3.1 Pro Preview</option>
   </select>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
@@ -72,6 +73,7 @@
         apiKey: function () {
           return localStorage.AI_API_KEY || "";
         },
+        apiKeyStorageName: "AI_API_KEY",
         model: "moonshotai/Kimi-K2.5",
       },
       grok: {
@@ -80,7 +82,17 @@
         apiKey: function () {
           return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
         },
+        apiKeyStorageName: "OPENROUTER_API_KEY",
         model: "x-ai/grok-4.20",
+      },
+      gemini: {
+        label: "Gemini 3.1 Pro Preview",
+        apiUrl: "https://openrouter.ai/api/v1/chat/completions",
+        apiKey: function () {
+          return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
+        },
+        apiKeyStorageName: "OPENROUTER_API_KEY",
+        model: "google/gemini-3.1-pro-preview",
       },
     };
 
@@ -666,7 +678,7 @@
       }
 
       if (!provider.apiKey()) {
-        setStatus("缺少 localStorage." + (currentProvider === "grok" ? "OPENROUTER_API_KEY" : "AI_API_KEY"));
+        setStatus("缺少 localStorage." + provider.apiKeyStorageName);
         return;
       }
 
@@ -714,7 +726,7 @@
       }
 
       if (!provider.apiKey()) {
-        setStatus("缺少 localStorage." + (currentProvider === "grok" ? "OPENROUTER_API_KEY" : "AI_API_KEY"));
+        setStatus("缺少 localStorage." + provider.apiKeyStorageName);
         return;
       }
 
