@@ -705,7 +705,6 @@
           promptPayload.userPrompt,
           provider.model
         );
-        promptElement.value = "";
         renderContent(answer, []);
       } catch (error) {
         setStatus("失敗: " + (error && error.message ? error.message : error));
