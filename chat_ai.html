@@ -696,9 +696,9 @@
       };
 
       if (provider.apiUrl.indexOf("openrouter.ai") !== -1) {
-        requestBody.max_completion_tokens = 8192;
+        requestBody.max_completion_tokens = 99999;
       } else {
-        requestBody.max_tokens = 8192;
+        requestBody.max_tokens = 99999;
       }
 
       let response = await fetch(provider.apiUrl, {
