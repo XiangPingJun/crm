@@ -26,7 +26,7 @@
     <option value="profile">Profile</option>
   </select>
   <select id="providerSelect">
-    <option value="kimi">Kimi</option>
+    <option value="ai_model">AI_Model</option>
     <option value="grok">Grok</option>
     <option value="gemini">Gemini</option>
   </select>
@@ -65,16 +65,16 @@
     let currentProfileText = "";
     let currentChatAiText = "";
     let currentMode = "chat";
-    let currentProvider = "kimi";
+    let currentProvider = "ai_model";
     let AI_PROVIDERS = {
-      kimi: {
-        label: "Kimi",
+      ai_model: {
+        label: "AI_Model",
         apiUrl: "https://api.together.xyz/v1/chat/completions",
         apiKey: function () {
           return localStorage.AI_API_KEY || "";
         },
         apiKeyStorageName: "AI_API_KEY",
-        model: "moonshotai/Kimi-K2.5",
+        model: "deepseek-ai/DeepSeek-V4-Pro",
       },
       grok: {
         label: "Grok",
@@ -131,12 +131,12 @@
     }
 
     function getCurrentAiProvider() {
-      let providerName = currentProvider && AI_PROVIDERS[currentProvider] ? currentProvider : "kimi";
+      let providerName = currentProvider && AI_PROVIDERS[currentProvider] ? currentProvider : "ai_model";
       return AI_PROVIDERS[providerName];
     }
 
     function setProvider(providerName) {
-      currentProvider = providerName && AI_PROVIDERS[providerName] ? providerName : "kimi";
+      currentProvider = providerName && AI_PROVIDERS[providerName] ? providerName : "ai_model";
       updateModeUI();
     }
 
@@ -878,7 +878,7 @@
     });
 
     providerSelectElement.addEventListener("change", function () {
-      let selectedProvider = providerSelectElement.value ? String(providerSelectElement.value).trim() : "kimi";
+      let selectedProvider = providerSelectElement.value ? String(providerSelectElement.value).trim() : "ai_model";
       setProvider(selectedProvider);
     });
 
