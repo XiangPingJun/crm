@@ -189,7 +189,7 @@
       if (!chatItems.length) {
         let option = document.createElement("option");
         option.value = "";
-        option.textContent = "等待 chat_updated...";
+        option.textContent = "等待 chats...";
         chatSelectElement.appendChild(option);
         chatSelectElement.disabled = true;
         currentChatName = "";
@@ -254,6 +254,28 @@
         normalizedNames.push({
           name: chatName,
           label: chatName + "(" + elapsedDays + ")",
+        });
+      }
+
+      return normalizedNames;
+    }
+
+    function normalizeChatNamesFromChatsMap(chatsMap) {
+      if (!chatsMap || typeof chatsMap !== "object") {
+        return [];
+      }
+
+      let keys = Object.keys(chatsMap);
+      keys.sort();
+
+      let normalizedNames = [];
+
+      for (let i = 0; i < keys.length; i++) {
+        let chatName = decodeFirebaseKey(keys[i]);
+
+        normalizedNames.push({
+          name: chatName,
+          label: chatName,
         });
       }
 
@@ -837,12 +859,13 @@
           aliasMap = normalizeAliasMap(snapshot.val());
         });
 
-        let chatUpdatedRef = ref(database, "chat_updated");
-        onValue(chatUpdatedRef, function (snapshot) {
-          chatItems = normalizeChatNamesFromUpdatedMap(snapshot.val());
+        // 使用 chats 作為下拉來源
+        let chatsRef = ref(database, "chats");
+        onValue(chatsRef, function (snapshot) {
+          chatItems = normalizeChatNamesFromChatsMap(snapshot.val());
           renderChatOptions();
         }, function (error) {
-          setStatus("chat_updated 監聽失敗: " + error.message);
+          setStatus("chats 監聽失敗: " + error.message);
         });
       } catch (error) {
         setStatus("初始化失敗");
