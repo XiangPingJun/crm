@@ -74,7 +74,7 @@
           return localStorage.AI_API_KEY || "";
         },
         apiKeyStorageName: "AI_API_KEY",
-        model: "deepseek-ai/DeepSeek-V4-Pro",
+        model: "moonshotai/Kimi-K2.5",
       },
       grok: {
         label: "Grok",
@@ -484,10 +484,24 @@
       renderCurrentContext(primaryChatName);
 
       releaseChatAiListener = onValue(chatAiRef, function (snapshot) {
-        currentChatAiText = snapshot.val() || "目前 chat_ai 沒有內容";
+        let newText = snapshot.val() || "目前 chat_ai 沒有內容";
+        try {
+          if (currentChatAiText && String(currentChatAiText) !== String(newText) && navigator && navigator.vibrate) {
+            navigator.vibrate(200);
+          }
+        } catch (e) {
+        }
+        currentChatAiText = newText;
         renderCurrentContext(primaryChatName);
       }, function (error) {
-        currentChatAiText = error.message || "chat_ai 監聽失敗";
+        let newText = error.message || "chat_ai 監聽失敗";
+        try {
+          if (currentChatAiText && String(currentChatAiText) !== String(newText) && navigator && navigator.vibrate) {
+            navigator.vibrate(200);
+          }
+        } catch (e) {
+        }
+        currentChatAiText = newText;
         renderCurrentContext(primaryChatName);
       });
     }
