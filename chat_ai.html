@@ -314,8 +314,6 @@
     }
 
     function renderContent(content) {
-      navigator?.vibrate?.(200);
-
       let normalizedContent = normalizeDisplayText(content || "目前 chat_ai 沒有內容");
       let fullText = normalizedContent;
       let fragment = document.createDocumentFragment();
@@ -748,6 +746,7 @@
           promptPayload.userPrompt,
           provider.model
         );
+        navigator?.vibrate?.(200);
         renderContent(answer, []);
         try {
           if (!promptElement.value || String(promptElement.value).trim() === "") {
@@ -809,6 +808,7 @@
         await saveMergedProfile(selectedChatName, mergedProfile);
         promptElement.value = "";
         currentProfileText = mergedProfile;
+        navigator?.vibrate?.(200);
         renderCurrentContext(selectedChatName);
       } catch (error) {
         setStatus("失敗: " + (error && error.message ? error.message : error));
