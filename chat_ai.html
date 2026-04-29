@@ -26,6 +26,7 @@
     <option value="profile">Profile</option>
   </select>
   <select id="providerSelect">
+    <option value="sonnet">Sonnet (Claude)</option>
     <option value="ai_model">AI_Model</option>
     <option value="grok">Grok</option>
     <option value="gemini">Gemini</option>
@@ -65,8 +66,17 @@
     let currentProfileText = "";
     let currentChatAiText = "";
     let currentMode = "chat";
-    let currentProvider = "ai_model";
+    let currentProvider = "sonnet";
     let AI_PROVIDERS = {
+      sonnet: {
+        label: "Sonnet",
+        apiUrl: "https://openrouter.ai/api/v1/chat/completions",
+        apiKey: function () {
+          return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
+        },
+        apiKeyStorageName: "OPENROUTER_API_KEY",
+        model: "anthropic/claude-sonnet-4.6",
+      },
       ai_model: {
         label: "AI_Model",
         apiUrl: "https://api.together.xyz/v1/chat/completions",
@@ -131,12 +141,12 @@
     }
 
     function getCurrentAiProvider() {
-      let providerName = currentProvider && AI_PROVIDERS[currentProvider] ? currentProvider : "ai_model";
+      let providerName = currentProvider && AI_PROVIDERS[currentProvider] ? currentProvider : "sonnet";
       return AI_PROVIDERS[providerName];
     }
 
     function setProvider(providerName) {
-      currentProvider = providerName && AI_PROVIDERS[providerName] ? providerName : "ai_model";
+      currentProvider = providerName && AI_PROVIDERS[providerName] ? providerName : "sonnet";
       updateModeUI();
     }
 
