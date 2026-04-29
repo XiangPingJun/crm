@@ -28,12 +28,10 @@
   <select id="providerSelect">
     <option value="sonnet">Sonnet</option>
     <option value="ai_model">AI_Model</option>
-    <option value="grok">Grok</option>
     <option value="gemini">Gemini</option>
   </select>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
-  <div></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -85,15 +83,6 @@
         },
         apiKeyStorageName: "AI_API_KEY",
         model: "moonshotai/Kimi-K2.5",
-      },
-      grok: {
-        label: "Grok",
-        apiUrl: "https://openrouter.ai/api/v1/chat/completions",
-        apiKey: function () {
-          return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
-        },
-        apiKeyStorageName: "OPENROUTER_API_KEY",
-        model: "x-ai/grok-4.20",
       },
       gemini: {
         label: "Gemini",
@@ -232,42 +221,6 @@
       return String(value || "").replace(/[.#$\/\[\]\u0000-\u001F\u007F]/g, function (char) {
         return "%" + char.charCodeAt(0).toString(16).toUpperCase();
       });
-    }
-
-    function getElapsedDaysLabel(timestamp) {
-      let elapsedTime = Date.now() - (Number(timestamp) || 0);
-      let elapsedDays = Math.floor(elapsedTime / (24 * 60 * 60 * 1000));
-
-      if (elapsedDays < 0) {
-        elapsedDays = 0;
-      }
-
-      return String(elapsedDays);
-    }
-
-    function normalizeChatNamesFromUpdatedMap(updatedMap) {
-      if (!updatedMap || typeof updatedMap !== "object") {
-        return [];
-      }
-
-      let keys = Object.keys(updatedMap);
-      keys.sort(function (left, right) {
-        return (Number(updatedMap[right]) || 0) - (Number(updatedMap[left]) || 0);
-      });
-
-      let normalizedNames = [];
-
-      for (let i = 0; i < keys.length; i++) {
-        let chatName = decodeFirebaseKey(keys[i]);
-        let elapsedDays = getElapsedDaysLabel(updatedMap[keys[i]]);
-
-        normalizedNames.push({
-          name: chatName,
-          label: chatName + "(" + elapsedDays + ")",
-        });
-      }
-
-      return normalizedNames;
     }
 
     function normalizeChatNamesFromChatsMap(chatsMap) {
