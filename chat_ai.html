@@ -811,6 +811,15 @@
           provider.model
         );
         renderContent(answer, []);
+        try {
+          if (!promptElement.value || String(promptElement.value).trim() === "") {
+            let primary = resolvePrimaryChatName(selectedChatName);
+            let chatKey = escapeFirebaseKey(primary);
+            let chatAiRef = ref(database, "chat_ai/" + chatKey);
+            await set(chatAiRef, answer);
+          }
+        } catch (e) {
+        }
       } catch (error) {
         setStatus("失敗: " + (error && error.message ? error.message : error));
       } finally {
