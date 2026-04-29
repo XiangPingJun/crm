@@ -314,6 +314,8 @@
     }
 
     function renderContent(content) {
+      navigator?.vibrate?.(200);
+
       let normalizedContent = normalizeDisplayText(content || "目前 chat_ai 沒有內容");
       let fullText = normalizedContent;
       let fragment = document.createDocumentFragment();
@@ -448,22 +450,10 @@
 
       releaseChatAiListener = onValue(chatAiRef, function (snapshot) {
         let newText = snapshot.val() || "目前 chat_ai 沒有內容";
-        try {
-          if (currentChatAiText && String(currentChatAiText) !== String(newText) && navigator && navigator.vibrate) {
-            navigator.vibrate(200);
-          }
-        } catch (e) {
-        }
         currentChatAiText = newText;
         renderCurrentContext(primaryChatName);
       }, function (error) {
         let newText = error.message || "chat_ai 監聽失敗";
-        try {
-          if (currentChatAiText && String(currentChatAiText) !== String(newText) && navigator && navigator.vibrate) {
-            navigator.vibrate(200);
-          }
-        } catch (e) {
-        }
         currentChatAiText = newText;
         renderCurrentContext(primaryChatName);
       });
