@@ -830,13 +830,13 @@
           aliasMap = normalizeAliasMap(snapshot.val());
         });
 
-        // 使用 chats 作為下拉來源
-        let chatsRef = ref(database, "chats");
-        onValue(chatsRef, function (snapshot) {
+        // 使用 chat_names 索引作為下拉來源（優化流量）
+        let chatNamesRef = ref(database, "chat_names");
+        onValue(chatNamesRef, function (snapshot) {
           chatItems = normalizeChatNamesFromChatsMap(snapshot.val());
           renderChatOptions();
         }, function (error) {
-          setStatus("chats 監聽失敗: " + error.message);
+          setStatus("chat_names 監聽失敗: " + error.message);
         });
       } catch (error) {
         setStatus("初始化失敗");
