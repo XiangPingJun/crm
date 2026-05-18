@@ -26,9 +26,9 @@
     <option value="profile">Profile</option>
   </select>
   <select id="providerSelect">
+    <option value="grok">Grok</option>
     <option value="sonnet">Sonnet</option>
     <option value="ai_model">AI_Model</option>
-    <option value="grok">Grok</option>
   </select>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
@@ -499,10 +499,12 @@
             "# Output Format",
             "請先簡短分析目前的對話局勢，接著嚴格按照以下格式提供 4 種不同戰略",
             "",
-            "**評分與輸出規則：**",
-            "* 回覆內容必須口語化，像是一般 LINE 聊天，杜絕 AI Slop",
-            "* 每個回覆內容都用 〖 〗 符號包住。不要超過28個字",
+            "**輸出規則：**",
             "* 使用繁體中文，而不是簡體",
+            "* 回覆內容必須口語化，像是一般 LINE 聊天，杜絕 AI Slop",
+            "* 每個回覆內容都用 〖 〗 符號包住",
+            "* 不要超過28個字",
+            "* 句尾使用句點或是問號",
             "* 不要使用其他任何引號",
             "* 不要使用「這是...不是...」型態的對比句",
             "",
