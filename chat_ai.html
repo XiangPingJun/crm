@@ -28,7 +28,7 @@
   <select id="providerSelect">
     <option value="sonnet">Sonnet</option>
     <option value="ai_model">AI_Model</option>
-    <option value="gemini">Gemini</option>
+    <option value="grok">Grok</option>
   </select>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
@@ -84,7 +84,7 @@
         apiKeyStorageName: "AI_API_KEY",
         model: "moonshotai/Kimi-K2.5",
       },
-      gemini: {
+      grok: {
         label: "Grok",
         apiUrl: "https://openrouter.ai/api/v1/chat/completions",
         apiKey: function () {
