@@ -26,7 +26,7 @@
     <option value="profile">Profile</option>
   </select>
   <select id="providerSelect">
-    <option value="grok">Grok</option>
+    <option value="qwen">Qwen</option>
     <option value="sonnet">Sonnet</option>
     <option value="ai_model">AI_Model</option>
   </select>
@@ -64,7 +64,7 @@
     let currentProfileText = "";
     let currentChatAiText = "";
     let currentMode = "chat";
-    let currentProvider = "grok";
+    let currentProvider = "qwen";
     let AI_PROVIDERS = {
       sonnet: {
         label: "Sonnet",
@@ -84,14 +84,14 @@
         apiKeyStorageName: "AI_API_KEY",
         model: "moonshotai/Kimi-K2.5",
       },
-      grok: {
-        label: "Grok",
+      qwen: {
+        label: "Qwen",
         apiUrl: "https://openrouter.ai/api/v1/chat/completions",
         apiKey: function () {
           return localStorage.OPENROUTER_API_KEY || localStorage.OPEN_ROUTER_API_KEY || "";
         },
         apiKeyStorageName: "OPENROUTER_API_KEY",
-        model: "x-ai/grok-4.3",
+        model: "qwen/qwen3.7-max",
       },
     };
 
