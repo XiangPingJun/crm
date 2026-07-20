@@ -28,7 +28,7 @@
   <select id="providerSelect">
     <option value="qwen">Qwen</option>
     <option value="sonnet">Sonnet</option>
-    <option value="ai_model">AI_Model</option>
+    <option value="ai_model">Kimi K3</option>
   </select>
   <button id="submitBtn">詢問</button>
   <div id="content" style="white-space: pre-line;"></div>
@@ -76,13 +76,13 @@
         model: "anthropic/claude-sonnet-4.6",
       },
       ai_model: {
-        label: "AI_Model",
+        label: "Kimi K3",
         apiUrl: "https://api.together.xyz/v1/chat/completions",
         apiKey: function () {
           return localStorage.AI_API_KEY || "";
         },
         apiKeyStorageName: "AI_API_KEY",
-        model: "moonshotai/Kimi-K2.5",
+        model: "moonshotai/kimi-k3",
       },
       qwen: {
         label: "Qwen",
